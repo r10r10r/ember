@@ -31,9 +31,9 @@ const SYSTEM_PROMPT = `You are Ember — a personal study assistant AND a META-C
 - **ALWAYS** use:
   - \`$$\` (on separate lines) for block/display equations.
   - \`$\` for inline variables and formulas (e.g., $x$ or $E=mc^2$).
+- **NO UNICODE MATH**: NEVER use Unicode exponents like ² or ³. ALWAYS use ^2 or ^3.
 - **NO ACCENTS IN MATH**: KaTeX fails on French accents (é, à, è, etc.) in math mode. Use \text{...} for words (e.g., $f \text{ est dérivée}$).
-- **NEVER NEST**: Never put \`$\` symbols inside a \`$$\` block. It crashes the system.
-- **NO TEXT IN BLOCKS**: Do not wrap normal sentences in \`$$\`. Only wrap the math.
+- **NO TEXT IN BLOCKS**: Do not wrap normal sentences in \`$$\`. Only wrap the math. Ensure there are spaces between your words.
 - **NEVER** nest dollar signs (e.g., $...$...$ is invalid).
 - Answer using the provided PDF context whenever possible.
 - If the PDF includes scanned page images, OCR them silently and answer from what you see.
@@ -100,39 +100,20 @@ function preprocessMath(content: string): string {
   // 1. Replace "smart" quotes and other non-standard characters that break KaTeX
   res = res.replace(/[‘’]/g, "'").replace(/[“”]/g, '"');
 
-  // 2. Handle standard LaTeX delimiters AI often uses
-  // While doing so, we strip internal $ signs to prevent nesting errors
-  res = res.replace(/\\\[([\s\S]*?)\\\]/g, (_, m) => {
-    const cleaned = m.replace(/\$/g, '');
-    return `\n$$\n${cleaned.trim()}\n$$\n`;
-  });
+  // 2. Normalize LaTeX delimiters AI often uses
+  // Use specific regexes that don't match across lines or swallow text
+  res = res.replace(/\\\[([\s\S]*?)\\\]/g, (_, m) => `\n$$\n${m.trim()}\n$$\n`);
   res = res.replace(/\\\(([\s\S]*?)\\\)/g, (_, m) => `$${m.trim()}$`);
 
   // 3. Fix the "$ $$" and "$$ $" issue (stray delimiters)
   res = res.replace(/\$\s*\$\$/g, '$$');
   res = res.replace(/\$\$\s*\$/g, '$$');
 
-  // 4. Fix imbalanced delimiters like "$ ... $$" or "$$ ... $"
-  // We normalize them to display math ($$) if they look substantial, otherwise inline ($)
-  res = res.replace(/(\$\$?)([\s\S]+?)(\$\$?)/g, (match, start, math, end) => {
-    if (start !== end) {
-      // Imbalanced! If it contains newlines or is long, make it display math
-      const cleaned = math.replace(/\$/g, '');
-      if (cleaned.includes('\n') || cleaned.length > 50) {
-        return `\n$$\n${cleaned.trim()}\n$$\n`;
-      }
-      return `$${cleaned.trim()}$`;
-    }
-    return match; // Already balanced
-  });
+  // 4. Ensure display math is isolated by newlines
+  // We use a safe regex that stays within the $$ markers
+  res = res.replace(/\$\$\s*([\s\S]+?)\s*\$\$/g, (_, m) => `\n$$\n${m.trim()}\n$$\n`);
 
-  // 5. Ensure display math is isolated by newlines and has NO internal $ signs
-  res = res.replace(/\$\$([\s\S]*?)\$\$/g, (_, m) => {
-    const cleaned = m.replace(/\$/g, '');
-    return `\n$$\n${cleaned.trim()}\n$$\n`;
-  });
-
-  // 6. Cleanup excessive newlines
+  // 5. Cleanup excessive newlines
   return res.replace(/\n{3,}/g, '\n\n').trim();
 }
 
@@ -555,7 +536,6 @@ export function AiChat() {
                   <ReactMarkdown
                     remarkPlugins={[remarkMath, remarkGfm]}
                     rehypePlugins={[
-                      rehypeRaw,
                       [rehypeKatex, { 
                         throwOnError: false, 
                         strict: (errorCode: string, errorMsg: string) => {
