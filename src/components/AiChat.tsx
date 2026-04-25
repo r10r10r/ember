@@ -86,25 +86,34 @@ type UiMessage = { role: "user" | "assistant"; content: string; attachments?: { 
 function preprocessMath(content: string): string {
   if (!content) return "";
 
-  let newContent = content;
+  let res = content;
 
-  // 1. Normalize LaTeX delimiters AI often uses
-  // \[ ... \] -> $$ ... $$
-  newContent = newContent.replace(/\\\[([\s\S]*?)\\\]/g, (_, math) => `\n$$\n${math.trim()}\n$$\n`);
-  // \( ... \) -> $ ... $
-  newContent = newContent.replace(/\\\(([\s\S]*?)\\\)/g, (_, math) => `$${math.trim()}$`);
+  // 1. Handle standard LaTeX delimiters AI often uses
+  res = res.replace(/\\\[([\s\S]*?)\\\]/g, (_, m) => `\n$$\n${m.trim()}\n$$\n`);
+  res = res.replace(/\\\(([\s\S]*?)\\\)/g, (_, m) => `$${m.trim()}$`);
 
-  // 2. Ensure all $$ blocks are properly isolated by newlines
-  // This is critical for remark-math to detect them as blocks.
-  newContent = newContent.replace(/\$\$([\s\S]*?)\$\$/g, (match, math) => {
-    // Only wrap if it's not already wrapped or if it's inline-style $$ (which is rare but happens)
-    return `\n$$\n${math.trim()}\n$$\n`;
+  // 2. Fix the "$ $$" and "$$ $" issue (stray delimiters)
+  res = res.replace(/\$\s*\$\$/g, '$$');
+  res = res.replace(/\$\$\s*\$/g, '$$');
+
+  // 3. Fix imbalanced delimiters like "$ ... $$" or "$$ ... $"
+  // We normalize them to display math ($$) if they look substantial, otherwise inline ($)
+  res = res.replace(/(\$\$?)([\s\S]+?)(\$\$?)/g, (match, start, math, end) => {
+    if (start !== end) {
+      // Imbalanced! If it contains newlines or is long, make it display math
+      if (math.includes('\n') || math.length > 50) {
+        return `\n$$\n${math.trim()}\n$$\n`;
+      }
+      return `$${math.trim()}$`;
+    }
+    return match; // Already balanced
   });
 
-  // 3. Cleanup: prevent triple/quadruple newlines created by replacements
-  newContent = newContent.replace(/\n{3,}/g, '\n\n');
+  // 4. Ensure display math is isolated by newlines
+  res = res.replace(/\$\$([\s\S]*?)\$\$/g, (_, m) => `\n$$\n${m.trim()}\n$$\n`);
 
-  return newContent;
+  // 5. Cleanup excessive newlines
+  return res.replace(/\n{3,}/g, '\n\n').trim();
 }
 
 export function AiChat() {
