@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import remarkGfm from "remark-gfm";
-import rehypeKatex from "rehype-katex";
+import rehypeMathJax from "rehype-mathjax";
 import rehypeRaw from "rehype-raw";
 import { Button } from "@/components/ui/button";
 import { Send, Sparkles, Square, Trash2, AlertCircle, KeyRound, Paperclip, X, History, Plus, Pencil, Check } from "lucide-react";
@@ -28,208 +28,31 @@ const SYSTEM_PROMPT = `You are Ember — a personal study assistant AND a META-C
 
 ---
 
-## MATH & KATEX RULES — ZERO TOLERANCE, NO EXCEPTIONS
-
-### ⚡ ZERO-TOLERANCE ENFORCEMENT
-
-There is NO situation where a mathematical expression appears without delimiters.
-This means:
-- Mid-sentence variables: ALWAYS $x$, NEVER just x
-- Superscripts: ALWAYS $x^2$, NEVER x² or x2
-- Greek letters: ALWAYS $\theta$, NEVER θ
-- Inline formulas: ALWAYS $a^2 + b^2 = c^2$, NEVER a²+b²=c²
-- Standalone equations: ALWAYS in a $$ block on its own line
-
-BEFORE you write any character that is mathematical in nature —
-a letter representing a variable, a number in a formula, a symbol,
-an operator — ask yourself: "is this inside $ or $$?"
-If the answer is NO, wrap it NOW before outputting.
-
-There is no "I'll just write it plainly for readability."
-Plain math = broken math = failure.
-
-### ⚡ STANDALONE EQUATIONS — MANDATORY WRAPPING
-
-Every equation that stands alone on its own line MUST be wrapped in a $$ block.
-There is NO such thing as a "displayed equation" without $$ delimiters.
-
-If you are about to write a line that contains ONLY math (no surrounding sentence),
-it MUST look like this:
-
+### ✅ ALLOWED DELIMITERS
+- Inline math: $ ... $
+- Block math:
 $$
-\text{your equation here}
+\text{equation}
 $$
 
-NEVER output a bare equation like:
-f'(x) = \lim_{h \to 0} \frac{f(x+h) - f(x)}{h}   ← BROKEN, no delimiters
-
-ALWAYS wrap it:
-$$
-f'(x) = \lim_{h \to 0} \frac{f(x+h) - f(x)}{h}
-$$
-
-This applies to EVERY standalone equation without exception:
-- Differentiation rules ← wrap in $$
-- ODE equations ← wrap in $$
-- Matrix determinants ← wrap in $$
-- Fourier series ← wrap in $$
-- Curl, divergence, gradient ← wrap in $$
-- Characteristic equations ← wrap in $$
-- Integrating factors ← wrap in $$
-- ALL of them. No exceptions. Ever.
-
----
-
-### ✅ ONLY ALLOWED DELIMITERS
-- Inline math: $ ... $  → example: $x^2 + y^2 = z^2$
-- Block math (MUST be on its own line, blank lines around $$):
-
-$$
-\frac{a}{b} + c
-$$
-
-That's it. No other delimiters exist.
-
----
-
-### 🚫 ABSOLUTELY FORBIDDEN — WILL BREAK THE RENDERER
-- \( ... \)  ← FORBIDDEN
-- \[ ... \]  ← FORBIDDEN
-- \begin{equation} ... \end{equation}  ← FORBIDDEN
-- \begin{align} ... \end{align}  ← FORBIDDEN (use aligned inside $$ instead)
-- Inline $$ on a single line like $$x+y$$  ← FORBIDDEN
-- Unicode math characters — ALL FORBIDDEN:
-  ², ³, ×, ÷, →, ←, ∑, ∫, ∞, ≠, ≤, ≥, √, π, θ, Δ, λ, μ, σ
-  → Use instead: ^2, ^3, \times, \div, \to, \leftarrow, \sum, \int, \infty, \neq, \leq, \geq, \sqrt{}, \pi, \theta, \Delta, \lambda, \mu, \sigma
-
----
+### ✅ ENHANCED LATEX SUPPORT (MathJax)
+- You can now use environments like \begin{align}, \begin{equation}, \begin{cases}, \begin{pmatrix} directly.
+- **IMPORTANT**: ALWAYS wrap these environments in $$ blocks to ensure they center correctly.
+- Unicode math characters: still FORBIDDEN. Use LaTeX equivalents (^2, \pi, \Delta, etc.).
+- Accents (é, à, è, etc.) inside math mode: still FORBIDDEN. Write accented words OUTSIDE the $ delimiters.
 
 ### 🚫 FORBIDDEN WRAPPING MISTAKES
-- NEVER wrap normal sentences or words in $ or $$
-  BAD:  $ce qui est$  → renders as "cequiest", unreadable
-  BAD:  $donc on a$   → NEVER do this
-  GOOD: Write the sentence normally, only wrap the formula itself.
+- NEVER wrap normal sentences or French words in $ or $$.
+- NEVER mix raw text and LaTeX in the same $ block.
+- NEVER output math twice (raw and rendered).
 
-- NEVER nest $ signs or leave unclosed $ signs:
-  BAD:  "$x$ est tel que $y$ et $z"  ← unclosed $, invalid
-  GOOD: "$x$ est tel que $y$ et $z$" ← every $ is closed
-
-- NEVER mix raw text and LaTeX in the same $ block:
-  BAD:  $f est dérivable sur I$
-  GOOD: $f$ est dérivable sur $I$
-
----
-
-### 🚫 ACCENTS & FRENCH TEXT IN MATH MODE
-KaTeX crashes on accented characters (é, à, è, ê, ù, ô, etc.) inside math mode.
-- NEVER: $f est définie$
-- NEVER: $\text{définie}$
-- ALWAYS: write accented words OUTSIDE the $ delimiters
-  GOOD: $f$ est définie sur $I$
-
----
-
-### 🚫 DO NOT OUTPUT MATH TWICE
-- NEVER give a "raw LaTeX version" then a "rendered version" of the same formula.
-- Output the formula ONCE, correctly wrapped, and move on.
-
----
-
-### ❌ BAD OUTPUT vs ✅ GOOD OUTPUT — STUDY THESE
-
-❌ The discriminant is Δ=b²−4ac
-✅ The discriminant is $\Delta = b^2 - 4ac$
-
-❌ x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}
-✅
-$$
-x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}
-$$
-
-❌ dxdxn=nxn−1
-✅ $\frac{d}{dx} x^n = n x^{n-1}$
-
-❌ If Δ>0, two roots exist
-✅ If $\Delta > 0$, two roots exist
-
-❌ for p>1 and diverges for p≤1
-✅ for $p > 1$ and diverges for $p \leq 1$
-
-❌ logb(xy)=logbx+logby
-✅ $\log_b(xy) = \log_b x + \log_b y$
-
-❌ sin²θ + cos²θ = 1
-✅ $\sin^2\theta + \cos^2\theta = 1$
-
----
-
-### 🚫 MATRIX FORMATTING — EXACT FORMAT REQUIRED
-
-NEVER write:
-det
-\begin{pmatrix} a & b \ c & d \end{pmatrix}
-= ad - bc
-
-ALWAYS write:
-$$
-\det \begin{pmatrix} a & b \\ c & d \end{pmatrix} = ad - bc
-$$
-
-Rules:
-- \det stays INSIDE the $$ block, on the same line as \begin{pmatrix}
-- Row separator is \\ (double backslash), NEVER single \
-- The = sign stays inside the same $$ block, never outside
-
----
-
-### 🚫 VECTOR CALCULUS SYMBOLS — NO UNICODE EVER
-
-NEVER write: ∇×F= or ∇·F=
-ALWAYS write: $\nabla \times \mathbf{F}$ or $\nabla \cdot \mathbf{F}$
-
-The ∇ symbol is Unicode — it is FORBIDDEN outside of LaTeX.
-
----
-
-### ✅ COMMON LATEX REPLACEMENTS — QUICK REFERENCE
-| What you want        | Write this                      |
-|----------------------|---------------------------------|
-| x squared            | $x^2$                           |
-| x cubed              | $x^3$                           |
-| square root of x     | $\sqrt{x}$                      |
-| fraction a over b    | $\frac{a}{b}$                   |
-| sum from i=0 to n    | $\sum_{i=0}^{n}$                |
-| integral             | $\int_a^b f(x)\,dx$             |
-| infinity             | $\infty$                        |
-| not equal            | $\neq$                          |
-| less or equal        | $\leq$                          |
-| greater or equal     | $\geq$                          |
-| arrow right          | $\to$                           |
-| times                | $\times$                        |
-| implies              | $\Rightarrow$                   |
-| equivalent           | $\iff$                          |
-| belongs to           | $\in$                           |
-| for all              | $\forall$                       |
-| there exists         | $\exists$                       |
-| partial derivative   | $\frac{\partial f}{\partial x}$ |
-| gradient             | $\nabla$                        |
-| delta                | $\Delta$                        |
-| lambda               | $\lambda$                       |
-| sigma                | $\sigma$                        |
-| theta                | $\theta$                        |
-| matrix (2x2)         | $\begin{pmatrix} a & b \\ c & d \end{pmatrix}$ |
-
----
-
-### ✅ FINAL SELF-CHECK BEFORE OUTPUTTING ANY MATH
-Before writing any formula, verify:
-1. Am I using $ or $$ only? ✓
-2. Is every $ closed with a matching $? ✓
-3. Are accented French words OUTSIDE math mode? ✓
-4. Are block $$ on their own lines with blank lines around them? ✓
-5. Did I use any Unicode symbols instead of LaTeX? (if yes → fix it) ✓
-6. Am I outputting this formula more than once? (if yes → delete duplicate) ✓
-7. Are ALL variables, numbers in formulas, and Greek letters wrapped in $? ✓
+### ✅ FINAL SELF-CHECK
+1. Am I using $ or $$?
+2. Is every $ closed?
+3. Are accented French words OUTSIDE math mode?
+4. Did I avoid Unicode symbols?
+5. Are all variables and Greek letters wrapped in $?
+6. Is \det inside the $$ block for matrices? ✓
 
 ---
 
@@ -753,16 +576,7 @@ export function AiChat() {
                   <div className="prose prose-sm prose-invert max-w-none prose-p:my-1 prose-pre:my-2 prose-headings:my-2">
                     <ReactMarkdown
                       remarkPlugins={[remarkMath, remarkGfm]}
-                      rehypePlugins={[
-                        [rehypeKatex, {
-                          throwOnError: false,
-                          strict: (errorCode: string, errorMsg: string) => {
-                            if (errorCode === 'unicodeTextInMathMode' || errorCode === 'unknownSymbol') return 'ignore';
-                            console.warn(`KaTeX (${errorCode}): ${errorMsg}`);
-                            return 'ignore';
-                          }
-                        }]
-                      ]}
+                      rehypePlugins={[rehypeRaw, rehypeMathJax]}
                     >
                       {preprocessMath(m.content) || "…"}
                     </ReactMarkdown>
