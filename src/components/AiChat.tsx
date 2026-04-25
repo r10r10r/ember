@@ -4,7 +4,6 @@ import remarkMath from "remark-math";
 import remarkGfm from "remark-gfm";
 import rehypeKatex from "rehype-katex";
 import rehypeRaw from "rehype-raw";
-import "katex/dist/katex.min.css";
 import { Button } from "@/components/ui/button";
 import { Send, Sparkles, Square, Trash2, AlertCircle, KeyRound, Paperclip, X, History, Plus, Pencil, Check } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription } from "@/components/ui/sheet";
@@ -31,6 +30,7 @@ const SYSTEM_PROMPT = `You are Ember — a personal study assistant AND a META-C
 - **ALWAYS** use:
   - \`$$\` (on separate lines) for block/display equations.
   - \`$\` for inline variables and formulas (e.g., $x$ or $E=mc^2$).
+- **NO RAW LATEX**: NEVER output LaTeX commands (like \begin{...} or \int) without wrapping them in $ or $$.
 - **CRITICAL**: ONLY wrap the math/formula. NEVER wrap normal text or sentences in $ or $$. 
 - **CRITICAL**: If you wrap words like "ce qui est" in $$, they will be joined together as "cequiest" and be unreadable. DO NOT DO THIS.
 - **NO UNICODE MATH**: NEVER use Unicode exponents like ² or ³. ALWAYS use ^2 or ^3.
@@ -124,7 +124,10 @@ function preprocessMath(content: string): string {
   // 3. Normalize inline \( \)
   res = res.replace(/\\\(([\s\S]*?)\\\)/g, (_, m) => `$${m.trim()}$`);
 
-  // 4. Cleanup excessive newlines
+  // 4. Wrap naked LaTeX environments (e.g. \begin{pmatrix}...)
+  res = res.replace(/(^|\n| )(\\begin\{[a-z\*]+\}[\s\S]*?\\end\{[a-z\*]+\})/g, (_, prefix, inner) => `${prefix}\n$$\n${inner.trim()}\n$$\n`);
+
+  // 5. Cleanup excessive newlines
   return res.replace(/\n{3,}/g, '\n\n').trim();
 }
 

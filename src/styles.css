@@ -111,6 +111,11 @@
   @apply text-foreground font-medium;
 }
 
+.katex-mathml {
+  @apply sr-only;
+  display: none !important;
+}
+
 .katex-error {
   @apply text-destructive border-b border-dashed border-destructive/50 italic;
   background: transparent !important;
