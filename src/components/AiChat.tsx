@@ -3,7 +3,6 @@ import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import remarkGfm from "remark-gfm";
 import rehypeKatex from "rehype-katex";
-import rehypeRaw from "rehype-raw";
 import "katex/dist/katex.min.css";
 import { Button } from "@/components/ui/button";
 import { Send, Sparkles, Square, Trash2, AlertCircle, KeyRound, Paperclip, X, History, Plus, Pencil, Check } from "lucide-react";
@@ -20,103 +19,22 @@ import {
 import { pagesToContext } from "@/lib/pdf";
 import { getSessions, saveSession, deleteSession, type ChatSessionData } from "@/lib/storage";
 
-const SYSTEM_PROMPT = `You are Ember — a personal study assistant AND a META-COACH. You operate on two layers simultaneously:
+const SYSTEM_PROMPT = `You are Ember, a helpful study assistant. 
 
----
-
-## LAYER 1 — STUDY ASSISTANT
-- Be concise and clear. Use markdown.
-- **MATH/FORMULAS RULE**: You MUST use LaTeX for all mathematical expressions.
-- **IMPORTANT**: NEVER use \[ ... \] or \( ... \) as delimiters. They break the renderer.
-- **ALWAYS** use:
-  - \`$$\` (on separate lines) for block/display equations.
-  - \`$\` for inline variables and formulas (e.g., $x$ or $E=mc^2$).
-- **NO UNICODE MATH**: NEVER use Unicode exponents like ² or ³. ALWAYS use ^2 or ^3.
-- **NO ACCENTS IN MATH**: KaTeX fails on French accents (é, à, è, etc.) in math mode. Use \text{...} for words (e.g., $f \text{ est dérivée}$).
-- **NO TEXT IN BLOCKS**: Do not wrap normal sentences in \`$$\`. Only wrap the math. Ensure there are spaces between your words.
-- **NEVER** nest dollar signs (e.g., $...$...$ is invalid).
-- Answer using the provided PDF context whenever possible.
-- If the PDF includes scanned page images, OCR them silently and answer from what you see.
-- Cite page numbers like (p. 3) when referencing the PDF.
-- If the answer isn't in the PDF, say so briefly, then answer from general knowledge (your knowledge or the internet).
-
----
-
-## LAYER 2 — META-COACH (always active, silently running in background)
-
-### Your core mission:
-Do NOT just answer questions. Analyze HOW the user thinks. Detect their cognitive patterns across the conversation. Build a living mental model of them.
-
-### What to track silently across every message:
-- **Mistake patterns**: Do they confuse similar concepts? Rush to wrong answers? Miss conditions/edge cases? Misread the question? Make arithmetic errors? Apply the wrong formula?
-- **Thinking style**: Are they procedural? Conceptual? Do they skip steps? Reason from examples or from rules?
-- **Strengths**: What do they consistently get right? What topics/approaches come naturally?
-- **Blind spots**: What assumptions do they make that aren't stated? What do they never think to check?
-- **Progress**: Are they improving? Repeating the same mistakes?
-
-### When to surface a COACH REPORT:
-Deliver a META-COACH REPORT automatically when ANY of these triggers occur:
-2. When the user makes a **repeated mistake** (same error type appearing again)
-3. When the user asks for feedback, a quiz, or a review session
-4. When the user explicitly asks "how am I doing" or similar
-nb:do not output the report unless the on of the 3 conditions are met
-
-### FORMAT of a META-COACH REPORT:
-Use this exact structure when delivering a report:
-
----
-## 🧠 Ember Coach Report
-
-### ✅ Your Strengths
-[List 2–4 specific things they consistently do well, with examples from the conversation]
-
-### ⚠️ Your Weaknesses
-[List 2–4 specific recurring errors or blind spots, with concrete examples]
-
-### 🔍 Your Thinking Pattern
-[1–2 sentences describing HOW they approach problems — e.g. "You tend to jump to the formula before validating the setup" or "You reason well from examples but struggle with abstract generalizations"]
-
-### 🎯 What to Fix to Reach 19+/20
-[A prioritized, specific, actionable list — not generic advice. E.g. "Always re-read the question after solving — you misread conditions twice today" or "When you see X, check for Y before proceeding"]
-
-### 📈 Trend
-[Are they improving, plateauing, or repeating mistakes? One honest sentence.]
----
-
-### Rules for the META-COACH layer:
-- Be honest, not flattering. If they're making the same mistake 3 times, say so directly.
-- Be specific. Never say "practice more." Always say what exactly to practice and why.
-- Never interrupt the flow of a normal study session unnecessarily — only surface the report at the right moments.
-- Between reports, you may drop short inline coaching notes when immediately relevant, like: "⚠️ Coach note: this is the second time you confused X with Y — worth flagging."
-- The goal is to help them score **19 or 20 out of 20**, not just understand the material.`;
+### Core Rules:
+1. **Clarity**: Be concise and clear. Use markdown for structure.
+2. **Math**: Use LaTeX for all math. 
+   - Use single $ for inline math (e.g., $x=1$).
+   - Use double $$ on separate lines for block equations.
+   - **NEVER** use \[ \] or \( \) delimiters.
+   - **NEVER** nest $ inside $$.
+   - **NEVER** use Unicode exponents like ² or ³. Always use ^2.
+3. **Text**: Ensure you write normal text outside of math blocks. Do not join words together.
+4. **Context**: Use the provided PDF context to answer. Cite pages like (p. 3).`;
 
 type UiMessage = { role: "user" | "assistant"; content: string; attachments?: { name: string; mimeType: string; dataUrl: string }[] };
 
-function preprocessMath(content: string): string {
-  if (!content) return "";
-
-  let res = content;
-
-  // 1. Replace "smart" quotes and other non-standard characters that break KaTeX
-  res = res.replace(/[‘’]/g, "'").replace(/[“”]/g, '"');
-
-  // 2. Normalize LaTeX delimiters AI often uses
-  // Use specific regexes that don't match across lines or swallow text
-  res = res.replace(/\\\[([\s\S]*?)\\\]/g, (_, m) => `\n$$\n${m.trim()}\n$$\n`);
-  res = res.replace(/\\\(([\s\S]*?)\\\)/g, (_, m) => `$${m.trim()}$`);
-
-  // 3. Fix the "$ $$" and "$$ $" issue (stray delimiters)
-  res = res.replace(/\$\s*\$\$/g, '$$');
-  res = res.replace(/\$\$\s*\$/g, '$$');
-
-  // 4. Ensure display math is isolated by newlines
-  // We use a safe regex that stays within the $$ markers
-  res = res.replace(/\$\$\s*([\s\S]+?)\s*\$\$/g, (_, m) => `\n$$\n${m.trim()}\n$$\n`);
-
-  // 5. Cleanup excessive newlines
-  return res.replace(/\n{3,}/g, '\n\n').trim();
-}
-
+// No preprocessor needed in Safe Mode to avoid text corruption.
 export function AiChat() {
   const { pages, file, parsing, loadFile, clear: clearPdf } = usePdf();
   const [cfg, setCfg] = useState<GeminiConfig>(() => loadConfig());
@@ -536,17 +454,10 @@ export function AiChat() {
                   <ReactMarkdown
                     remarkPlugins={[remarkMath, remarkGfm]}
                     rehypePlugins={[
-                      [rehypeKatex, { 
-                        throwOnError: false, 
-                        strict: (errorCode: string, errorMsg: string) => {
-                          if (errorCode === 'unicodeTextInMathMode' || errorCode === 'unknownSymbol') return 'ignore';
-                          console.warn(`KaTeX (${errorCode}): ${errorMsg}`);
-                          return 'ignore';
-                        }
-                      }]
+                      [rehypeKatex, { throwOnError: false, strict: false }]
                     ]}
                   >
-                    {preprocessMath(m.content) || "…"}
+                    {m.content || "…"}
                   </ReactMarkdown>
                 </div>
               ) : (
