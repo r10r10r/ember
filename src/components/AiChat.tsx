@@ -93,26 +93,15 @@ function preprocessMath(content: string): string {
   res = res.replace(/\\\(([\s\S]*?)\\\)/g, (_, m) => `$${m.trim()}$`);
 
   // 2. Fix the "$ $$" and "$$ $" issue (stray delimiters)
+  // This resolves the "Can't use function '$' in math mode" error.
   res = res.replace(/\$\s*\$\$/g, '$$');
   res = res.replace(/\$\$\s*\$/g, '$$');
 
-  // 3. Fix imbalanced delimiters like "$ ... $$" or "$$ ... $"
-  // We normalize them to display math ($$) if they look substantial, otherwise inline ($)
-  res = res.replace(/(\$\$?)([\s\S]+?)(\$\$?)/g, (match, start, math, end) => {
-    if (start !== end) {
-      // Imbalanced! If it contains newlines or is long, make it display math
-      if (math.includes('\n') || math.length > 50) {
-        return `\n$$\n${math.trim()}\n$$\n`;
-      }
-      return `$${math.trim()}$`;
-    }
-    return match; // Already balanced
-  });
+  // 3. Ensure display math is isolated by newlines
+  // Use a non-greedy match that stays within the $$ markers.
+  res = res.replace(/\$\$\s*([\s\S]+?)\s*\$\$/g, (_, m) => `\n$$\n${m.trim()}\n$$\n`);
 
-  // 4. Ensure display math is isolated by newlines
-  res = res.replace(/\$\$([\s\S]*?)\$\$/g, (_, m) => `\n$$\n${m.trim()}\n$$\n`);
-
-  // 5. Cleanup excessive newlines
+  // 4. Cleanup excessive newlines
   return res.replace(/\n{3,}/g, '\n\n').trim();
 }
 
