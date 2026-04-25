@@ -1,0 +1,103 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-focus: var(--focus);
+  --color-break: var(--break);
+  --color-ember: var(--ember);
+  --color-ember-glow: var(--ember-glow);
+}
+
+/* Ember — true dark grey/black with red accent */
+:root {
+  --radius: 0.75rem;
+  --background: oklch(0.13 0.003 0);
+  --foreground: oklch(0.96 0.005 60);
+  --card: oklch(0.17 0.004 0);
+  --card-foreground: oklch(0.96 0.005 60);
+  --popover: oklch(0.17 0.004 0);
+  --popover-foreground: oklch(0.96 0.005 60);
+  --primary: oklch(0.62 0.22 25);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.22 0.005 0);
+  --secondary-foreground: oklch(0.96 0.005 60);
+  --muted: oklch(0.2 0.004 0);
+  --muted-foreground: oklch(0.66 0.01 30);
+  --accent: oklch(0.25 0.04 25);
+  --accent-foreground: oklch(0.96 0.01 40);
+  --destructive: oklch(0.6 0.22 27);
+  --destructive-foreground: oklch(0.99 0 0);
+  --success: oklch(0.7 0.15 150);
+  --success-foreground: oklch(0.13 0.003 0);
+  --focus: oklch(0.62 0.22 25);
+  --break: oklch(0.7 0.13 200);
+  --ember: oklch(0.62 0.22 28);
+  --ember-glow: oklch(0.75 0.2 45);
+  --border: oklch(1 0 0 / 8%);
+  --input: oklch(1 0 0 / 12%);
+  --ring: oklch(0.62 0.22 25);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -10%, oklch(0.62 0.22 28 / 0.12), transparent 60%),
+      radial-gradient(ellipse 60% 40% at 100% 100%, oklch(0.62 0.22 28 / 0.05), transparent 60%);
+    background-attachment: fixed;
+  }
+}
+
+@utility ember-gradient-text {
+  background: linear-gradient(135deg, var(--ember-glow), var(--ember));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@utility scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+@keyframes objective-in {
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@utility reveal-in {
+  animation: objective-in 200ms ease-out forwards;
+}
