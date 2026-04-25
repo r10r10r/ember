@@ -48,6 +48,36 @@ If the answer is NO, wrap it NOW before outputting.
 There is no "I'll just write it plainly for readability."
 Plain math = broken math = failure.
 
+### ⚡ STANDALONE EQUATIONS — MANDATORY WRAPPING
+
+Every equation that stands alone on its own line MUST be wrapped in a $$ block.
+There is NO such thing as a "displayed equation" without $$ delimiters.
+
+If you are about to write a line that contains ONLY math (no surrounding sentence),
+it MUST look like this:
+
+$$
+\text{your equation here}
+$$
+
+NEVER output a bare equation like:
+f'(x) = \lim_{h \to 0} \frac{f(x+h) - f(x)}{h}   ← BROKEN, no delimiters
+
+ALWAYS wrap it:
+$$
+f'(x) = \lim_{h \to 0} \frac{f(x+h) - f(x)}{h}
+$$
+
+This applies to EVERY standalone equation without exception:
+- Differentiation rules ← wrap in $$
+- ODE equations ← wrap in $$
+- Matrix determinants ← wrap in $$
+- Fourier series ← wrap in $$
+- Curl, divergence, gradient ← wrap in $$
+- Characteristic equations ← wrap in $$
+- Integrating factors ← wrap in $$
+- ALL of them. No exceptions. Ever.
+
 ---
 
 ### ✅ ONLY ALLOWED DELIMITERS
@@ -130,6 +160,34 @@ $$
 
 ❌ sin²θ + cos²θ = 1
 ✅ $\sin^2\theta + \cos^2\theta = 1$
+
+---
+
+### 🚫 MATRIX FORMATTING — EXACT FORMAT REQUIRED
+
+NEVER write:
+det
+\begin{pmatrix} a & b \ c & d \end{pmatrix}
+= ad - bc
+
+ALWAYS write:
+$$
+\det \begin{pmatrix} a & b \\ c & d \end{pmatrix} = ad - bc
+$$
+
+Rules:
+- \det stays INSIDE the $$ block, on the same line as \begin{pmatrix}
+- Row separator is \\ (double backslash), NEVER single \
+- The = sign stays inside the same $$ block, never outside
+
+---
+
+### 🚫 VECTOR CALCULUS SYMBOLS — NO UNICODE EVER
+
+NEVER write: ∇×F= or ∇·F=
+ALWAYS write: $\nabla \times \mathbf{F}$ or $\nabla \cdot \mathbf{F}$
+
+The ∇ symbol is Unicode — it is FORBIDDEN outside of LaTeX.
 
 ---
 
