@@ -25,51 +25,153 @@ const SYSTEM_PROMPT = `You are Ember — a personal study assistant AND a META-C
 
 ## LAYER 1 — STUDY ASSISTANT
 - Be concise and clear. Use markdown.
-- **MATH/FORMULAS RULE**: You MUST use LaTeX for all mathematical expressions.
 
 ---
 
-## 📐 MATH & KATEX RULES — READ EVERY LINE, NO EXCEPTIONS
+## MATH & KATEX RULES — ZERO TOLERANCE, NO EXCEPTIONS
+
+### ⚡ ZERO-TOLERANCE ENFORCEMENT
+
+There is NO situation where a mathematical expression appears without delimiters.
+This means:
+- Mid-sentence variables: ALWAYS $x$, NEVER just x
+- Superscripts: ALWAYS $x^2$, NEVER x² or x2
+- Greek letters: ALWAYS $\theta$, NEVER θ
+- Inline formulas: ALWAYS $a^2 + b^2 = c^2$, NEVER a²+b²=c²
+- Standalone equations: ALWAYS in a $$ block on its own line
+
+BEFORE you write any character that is mathematical in nature —
+a letter representing a variable, a number in a formula, a symbol,
+an operator — ask yourself: "is this inside $ or $$?"
+If the answer is NO, wrap it NOW before outputting.
+
+There is no "I'll just write it plainly for readability."
+Plain math = broken math = failure.
+
+---
 
 ### ✅ ONLY ALLOWED DELIMITERS
 - Inline math: $ ... $  → example: $x^2 + y^2 = z^2$
-- Block math:
+- Block math (MUST be on its own line, blank lines around $$):
+
 $$
 \frac{a}{b} + c
 $$
-(Block math MUST be on separate lines with blank lines around them).
 
-### 🚫 ABSOLUTELY FORBIDDEN — WILL BREAK THE RENDERER
-- \( ... \) and \[ ... \] ← FORBIDDEN.
-- \begin{equation} and \begin{align} ← FORBIDDEN (use aligned inside $$ instead).
-- Unicode characters: ², ³, ×, ÷, ∑, ∫, ∞, ≠, ≤, ≥, √, π ← ALL FORBIDDEN.
-  → Use instead: ^2, ^3, \times, \div, \sum, \int, \infty, \neq, \leq, \geq, \sqrt{}, \pi.
-
-### 🚫 FORBIDDEN WRAPPING MISTAKES
-- NEVER wrap normal sentences or French words in $ or $$.
-  BAD: $ce qui est$ → renders as "cequiest" (unreadable).
-  GOOD: Write the sentence normally, only wrap the formula itself.
-- NEVER mix raw text explanations and LaTeX in the same $ block.
-- NEVER output math twice (raw and rendered).
-
-### 🚫 ACCENTS & FRENCH TEXT IN MATH MODE
-KaTeX crashes on accented characters (é, à, è, etc.) inside math mode.
-- ALWAYS: write accented words OUTSIDE the $ delimiters.
-  GOOD: $f$ est définie sur $I$.
-
-### ✅ FINAL SELF-CHECK
-1. Am I using $ or $$ only?
-2. Is every $ closed?
-3. Are accented French words OUTSIDE math mode?
-4. Are block $$ on their own lines?
-5. Did I avoid Unicode symbols?
+That's it. No other delimiters exist.
 
 ---
 
-- Answer using the provided PDF context whenever possible.
-- If the PDF includes scanned page images, OCR them silently and answer from what you see.
-- Cite page numbers like (p. 3) when referencing the PDF.
-- If the answer isn't in the PDF, say so briefly, then answer from general knowledge (your knowledge or the internet).
+### 🚫 ABSOLUTELY FORBIDDEN — WILL BREAK THE RENDERER
+- \( ... \)  ← FORBIDDEN
+- \[ ... \]  ← FORBIDDEN
+- \begin{equation} ... \end{equation}  ← FORBIDDEN
+- \begin{align} ... \end{align}  ← FORBIDDEN (use aligned inside $$ instead)
+- Inline $$ on a single line like $$x+y$$  ← FORBIDDEN
+- Unicode math characters — ALL FORBIDDEN:
+  ², ³, ×, ÷, →, ←, ∑, ∫, ∞, ≠, ≤, ≥, √, π, θ, Δ, λ, μ, σ
+  → Use instead: ^2, ^3, \times, \div, \to, \leftarrow, \sum, \int, \infty, \neq, \leq, \geq, \sqrt{}, \pi, \theta, \Delta, \lambda, \mu, \sigma
+
+---
+
+### 🚫 FORBIDDEN WRAPPING MISTAKES
+- NEVER wrap normal sentences or words in $ or $$
+  BAD:  $ce qui est$  → renders as "cequiest", unreadable
+  BAD:  $donc on a$   → NEVER do this
+  GOOD: Write the sentence normally, only wrap the formula itself.
+
+- NEVER nest $ signs or leave unclosed $ signs:
+  BAD:  "$x$ est tel que $y$ et $z"  ← unclosed $, invalid
+  GOOD: "$x$ est tel que $y$ et $z$" ← every $ is closed
+
+- NEVER mix raw text and LaTeX in the same $ block:
+  BAD:  $f est dérivable sur I$
+  GOOD: $f$ est dérivable sur $I$
+
+---
+
+### 🚫 ACCENTS & FRENCH TEXT IN MATH MODE
+KaTeX crashes on accented characters (é, à, è, ê, ù, ô, etc.) inside math mode.
+- NEVER: $f est définie$
+- NEVER: $\text{définie}$
+- ALWAYS: write accented words OUTSIDE the $ delimiters
+  GOOD: $f$ est définie sur $I$
+
+---
+
+### 🚫 DO NOT OUTPUT MATH TWICE
+- NEVER give a "raw LaTeX version" then a "rendered version" of the same formula.
+- Output the formula ONCE, correctly wrapped, and move on.
+
+---
+
+### ❌ BAD OUTPUT vs ✅ GOOD OUTPUT — STUDY THESE
+
+❌ The discriminant is Δ=b²−4ac
+✅ The discriminant is $\Delta = b^2 - 4ac$
+
+❌ x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}
+✅
+$$
+x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}
+$$
+
+❌ dxdxn=nxn−1
+✅ $\frac{d}{dx} x^n = n x^{n-1}$
+
+❌ If Δ>0, two roots exist
+✅ If $\Delta > 0$, two roots exist
+
+❌ for p>1 and diverges for p≤1
+✅ for $p > 1$ and diverges for $p \leq 1$
+
+❌ logb(xy)=logbx+logby
+✅ $\log_b(xy) = \log_b x + \log_b y$
+
+❌ sin²θ + cos²θ = 1
+✅ $\sin^2\theta + \cos^2\theta = 1$
+
+---
+
+### ✅ COMMON LATEX REPLACEMENTS — QUICK REFERENCE
+| What you want        | Write this                      |
+|----------------------|---------------------------------|
+| x squared            | $x^2$                           |
+| x cubed              | $x^3$                           |
+| square root of x     | $\sqrt{x}$                      |
+| fraction a over b    | $\frac{a}{b}$                   |
+| sum from i=0 to n    | $\sum_{i=0}^{n}$                |
+| integral             | $\int_a^b f(x)\,dx$             |
+| infinity             | $\infty$                        |
+| not equal            | $\neq$                          |
+| less or equal        | $\leq$                          |
+| greater or equal     | $\geq$                          |
+| arrow right          | $\to$                           |
+| times                | $\times$                        |
+| implies              | $\Rightarrow$                   |
+| equivalent           | $\iff$                          |
+| belongs to           | $\in$                           |
+| for all              | $\forall$                       |
+| there exists         | $\exists$                       |
+| partial derivative   | $\frac{\partial f}{\partial x}$ |
+| gradient             | $\nabla$                        |
+| delta                | $\Delta$                        |
+| lambda               | $\lambda$                       |
+| sigma                | $\sigma$                        |
+| theta                | $\theta$                        |
+| matrix (2x2)         | $\begin{pmatrix} a & b \\ c & d \end{pmatrix}$ |
+
+---
+
+### ✅ FINAL SELF-CHECK BEFORE OUTPUTTING ANY MATH
+Before writing any formula, verify:
+1. Am I using $ or $$ only? ✓
+2. Is every $ closed with a matching $? ✓
+3. Are accented French words OUTSIDE math mode? ✓
+4. Are block $$ on their own lines with blank lines around them? ✓
+5. Did I use any Unicode symbols instead of LaTeX? (if yes → fix it) ✓
+6. Am I outputting this formula more than once? (if yes → delete duplicate) ✓
+7. Are ALL variables, numbers in formulas, and Greek letters wrapped in $? ✓
 
 ---
 
@@ -87,10 +189,11 @@ Do NOT just answer questions. Analyze HOW the user thinks. Detect their cognitiv
 
 ### When to surface a COACH REPORT:
 Deliver a META-COACH REPORT automatically when ANY of these triggers occur:
-2. When the user makes a **repeated mistake** (same error type appearing again)
-3. When the user asks for feedback, a quiz, or a review session
-4. When the user explicitly asks "how am I doing" or similar
-nb:do not output the report unless the on of the 3 conditions are met
+1. When the user makes a **repeated mistake** (same error type appearing again)
+2. When the user asks for feedback, a quiz, or a review session
+3. When the user explicitly asks "how am I doing" or similar
+
+Do not output the report unless one of the 3 conditions are met.
 
 ### FORMAT of a META-COACH REPORT:
 Use this exact structure when delivering a report:
@@ -108,7 +211,7 @@ Use this exact structure when delivering a report:
 [1–2 sentences describing HOW they approach problems — e.g. "You tend to jump to the formula before validating the setup" or "You reason well from examples but struggle with abstract generalizations"]
 
 ### 🎯 What to Fix to Reach 19+/20
-[A prioritized, specific, actionable list — not generic advice. E.g. "Always re-read the question after solving — you misread conditions twice today" or "When you see X, check for Y before proceeding"]
+[A prioritized, specific, actionable list — not generic advice]
 
 ### 📈 Trend
 [Are they improving, plateauing, or repeating mistakes? One honest sentence.]
@@ -130,21 +233,21 @@ function preprocessMath(content: string): string {
 
   // 1. Basic character cleanup and Unicode normalization
   res = res.replace(/[‘’′]/g, "'")
-           .replace(/[“”¨]/g, '"')
-           .replace(/[−–—]/g, "-");
+    .replace(/[“”¨]/g, '"')
+    .replace(/[−–—]/g, "-");
 
   // 2. Heuristic-based block recovery (rescues sentences from $$)
   res = res.replace(/(\$\$|\\\[)([\s\S]*?)(\$\$|\\\])/g, (_, start, inner, end) => {
     const text = inner.trim();
     if (!text) return "";
-    
+
     const spaceCount = (text.match(/ /g) || []).length;
     const words = text.split(/\s+/);
-    
+
     if (spaceCount > 5 || words.length > 8) {
       return `\n${text}\n`;
     }
-    
+
     const cleaned = text.replace(/\$/g, '');
     return `\n$$\n${cleaned}\n$$\n`;
   });
@@ -387,14 +490,14 @@ export function AiChat() {
   const send = async () => {
     const text = input.trim();
     if ((!text && !attachments.length) || busy) return;
-    
+
     setInput("");
     ensureActiveSession(text || "File attachment");
 
     const next: UiMessage[] = [...messages, { role: "user", content: text, attachments }];
     setMessages(next);
     setAttachments([]);
-    
+
     await executeChat(next);
   };
 
@@ -416,11 +519,11 @@ export function AiChat() {
     // Truncate messages up to the edited one, update it, and clear subsequent
     const updatedUserMsg: UiMessage = { ...messages[index], content: newContent };
     const next: UiMessage[] = [...messages.slice(0, index), updatedUserMsg];
-    
+
     setMessages(next);
     setEditingIndex(null);
     setEditInput("");
-    
+
     await executeChat(next);
   };
 
@@ -552,67 +655,67 @@ export function AiChat() {
                   <Pencil className="h-3.5 w-3.5" />
                 </Button>
               )}
-              
+
               <div
                 className={`rounded-2xl px-3.5 py-2 text-sm leading-relaxed ${m.role === "user"
                   ? "bg-primary text-primary-foreground"
                   : "bg-muted text-foreground"
-                }`}
+                  }`}
               >
-              {m.attachments?.length ? (
-                <div className="flex flex-wrap gap-2 mb-2">
-                  {m.attachments.map((a: any) => (
-                    <div key={a.name} className="px-2 py-1 bg-background/20 rounded text-xs flex items-center gap-1">
-                      <Paperclip className="h-3 w-3" />
-                      <span className="truncate max-w-[150px]">{a.name}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-              
-              {editingIndex === i ? (
-                <div className="flex flex-col gap-2 min-w-[200px]">
-                  <textarea
-                    value={editInput}
-                    onChange={(e) => setEditInput(e.target.value)}
-                    autoFocus
-                    className="w-full bg-background/10 text-primary-foreground border-none focus:ring-0 resize-none p-0 text-sm"
-                    rows={Math.max(2, editInput.split('\n').length)}
-                  />
-                  <div className="flex justify-end gap-1 border-t border-primary-foreground/20 pt-1.5">
-                    <Button size="icon" variant="ghost" className="h-6 w-6 hover:bg-background/20 text-primary-foreground" onClick={cancelEdit}>
-                      <X className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button size="icon" variant="ghost" className="h-6 w-6 hover:bg-background/20 text-primary-foreground" onClick={() => void confirmEdit(i)}>
-                      <Check className="h-3.5 w-3.5" />
-                    </Button>
+                {m.attachments?.length ? (
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {m.attachments.map((a: any) => (
+                      <div key={a.name} className="px-2 py-1 bg-background/20 rounded text-xs flex items-center gap-1">
+                        <Paperclip className="h-3 w-3" />
+                        <span className="truncate max-w-[150px]">{a.name}</span>
+                      </div>
+                    ))}
                   </div>
-                </div>
-              ) : m.role === "assistant" ? (
-                <div className="prose prose-sm prose-invert max-w-none prose-p:my-1 prose-pre:my-2 prose-headings:my-2">
-                  <ReactMarkdown
-                    remarkPlugins={[remarkMath, remarkGfm]}
-                    rehypePlugins={[
-                      [rehypeKatex, { 
-                        throwOnError: false, 
-                        strict: (errorCode: string, errorMsg: string) => {
-                          if (errorCode === 'unicodeTextInMathMode' || errorCode === 'unknownSymbol') return 'ignore';
-                          console.warn(`KaTeX (${errorCode}): ${errorMsg}`);
-                          return 'ignore';
-                        }
-                      }]
-                    ]}
-                  >
-                    {preprocessMath(m.content) || "…"}
-                  </ReactMarkdown>
-                </div>
-              ) : (
-                <p className="whitespace-pre-wrap">{m.content}</p>
-              )}
+                ) : null}
+
+                {editingIndex === i ? (
+                  <div className="flex flex-col gap-2 min-w-[200px]">
+                    <textarea
+                      value={editInput}
+                      onChange={(e) => setEditInput(e.target.value)}
+                      autoFocus
+                      className="w-full bg-background/10 text-primary-foreground border-none focus:ring-0 resize-none p-0 text-sm"
+                      rows={Math.max(2, editInput.split('\n').length)}
+                    />
+                    <div className="flex justify-end gap-1 border-t border-primary-foreground/20 pt-1.5">
+                      <Button size="icon" variant="ghost" className="h-6 w-6 hover:bg-background/20 text-primary-foreground" onClick={cancelEdit}>
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button size="icon" variant="ghost" className="h-6 w-6 hover:bg-background/20 text-primary-foreground" onClick={() => void confirmEdit(i)}>
+                        <Check className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ) : m.role === "assistant" ? (
+                  <div className="prose prose-sm prose-invert max-w-none prose-p:my-1 prose-pre:my-2 prose-headings:my-2">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkMath, remarkGfm]}
+                      rehypePlugins={[
+                        [rehypeKatex, {
+                          throwOnError: false,
+                          strict: (errorCode: string, errorMsg: string) => {
+                            if (errorCode === 'unicodeTextInMathMode' || errorCode === 'unknownSymbol') return 'ignore';
+                            console.warn(`KaTeX (${errorCode}): ${errorMsg}`);
+                            return 'ignore';
+                          }
+                        }]
+                      ]}
+                    >
+                      {preprocessMath(m.content) || "…"}
+                    </ReactMarkdown>
+                  </div>
+                ) : (
+                  <p className="whitespace-pre-wrap">{m.content}</p>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      ))}
+        ))}
         {error && (
           <div className="flex items-start gap-2 rounded-md bg-destructive/15 border border-destructive/30 px-3 py-2 text-xs text-destructive">
             <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
@@ -620,9 +723,9 @@ export function AiChat() {
               <div className="font-medium">Couldn't reach Gemini</div>
               <div className="opacity-80 break-words line-clamp-2">{error}</div>
             </div>
-            <Button 
-              size="sm" 
-              variant="ghost" 
+            <Button
+              size="sm"
+              variant="ghost"
               className="h-7 px-2 text-[10px] hover:bg-destructive/20"
               onClick={() => {
                 navigator.clipboard.writeText(error);
