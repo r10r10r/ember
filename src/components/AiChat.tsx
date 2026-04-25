@@ -7,7 +7,7 @@ import rehypeRaw from "rehype-raw";
 import "katex/dist/katex.min.css";
 import { Button } from "@/components/ui/button";
 import { Send, Sparkles, Square, Trash2, AlertCircle, KeyRound, Paperclip, X, History, Plus, Pencil, Check } from "lucide-react";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription } from "@/components/ui/sheet";
 import { toast } from "sonner";
 import { usePdf } from "./PdfContext";
 import { GeminiSettings } from "./GeminiSettings";
@@ -31,6 +31,7 @@ const SYSTEM_PROMPT = `You are Ember — a personal study assistant AND a META-C
 - **ALWAYS** use:
   - \`$$\` (on separate lines) for block/display equations.
   - \`$\` for inline variables and formulas (e.g., $x$ or $E=mc^2$).
+- **NO ACCENTS IN MATH**: KaTeX fails on French accents (é, à, è, etc.) in math mode. Use \text{...} for words (e.g., $f \text{ est dérivée}$).
 - **NEVER** nest dollar signs (e.g., $...$...$ is invalid).
 - Answer using the provided PDF context whenever possible.
 - If the PDF includes scanned page images, OCR them silently and answer from what you see.
@@ -94,7 +95,10 @@ function preprocessMath(content: string): string {
 
   let res = content;
 
-  // 1. Handle standard LaTeX delimiters AI often uses
+  // 1. Replace "smart" quotes and other non-standard characters that break KaTeX
+  res = res.replace(/[‘’]/g, "'").replace(/[“”]/g, '"');
+
+  // 2. Handle standard LaTeX delimiters AI often uses
   res = res.replace(/\\\[([\s\S]*?)\\\]/g, (_, m) => `\n$$\n${m.trim()}\n$$\n`);
   res = res.replace(/\\\(([\s\S]*?)\\\)/g, (_, m) => `$${m.trim()}$`);
 
@@ -415,6 +419,7 @@ export function AiChat() {
             <SheetContent className="w-[300px] sm:w-[400px]">
               <SheetHeader className="mb-4 text-left">
                 <SheetTitle>Chat History</SheetTitle>
+                <SheetDescription>Access and manage your previous study sessions.</SheetDescription>
               </SheetHeader>
               <div className="flex flex-col gap-2 overflow-y-auto max-h-[85vh] scrollbar-thin">
                 {sessions.length === 0 && <p className="text-sm text-muted-foreground text-center mt-8">No past chats found.</p>}
@@ -533,6 +538,7 @@ export function AiChat() {
                       [rehypeKatex, { 
                         throwOnError: false, 
                         strict: (errorCode: string, errorMsg: string) => {
+                          if (errorCode === 'unicodeTextInMathMode' || errorCode === 'unknownSymbol') return 'ignore';
                           console.warn(`KaTeX (${errorCode}): ${errorMsg}`);
                           return 'ignore';
                         }
