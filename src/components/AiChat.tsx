@@ -32,6 +32,8 @@ const SYSTEM_PROMPT = `You are Ember — a personal study assistant AND a META-C
   - \`$$\` (on separate lines) for block/display equations.
   - \`$\` for inline variables and formulas (e.g., $x$ or $E=mc^2$).
 - **NO ACCENTS IN MATH**: KaTeX fails on French accents (é, à, è, etc.) in math mode. Use \text{...} for words (e.g., $f \text{ est dérivée}$).
+- **NEVER NEST**: Never put \`$\` symbols inside a \`$$\` block. It crashes the system.
+- **NO TEXT IN BLOCKS**: Do not wrap normal sentences in \`$$\`. Only wrap the math.
 - **NEVER** nest dollar signs (e.g., $...$...$ is invalid).
 - Answer using the provided PDF context whenever possible.
 - If the PDF includes scanned page images, OCR them silently and answer from what you see.
@@ -99,19 +101,38 @@ function preprocessMath(content: string): string {
   res = res.replace(/[‘’]/g, "'").replace(/[“”]/g, '"');
 
   // 2. Handle standard LaTeX delimiters AI often uses
-  res = res.replace(/\\\[([\s\S]*?)\\\]/g, (_, m) => `\n$$\n${m.trim()}\n$$\n`);
+  // While doing so, we strip internal $ signs to prevent nesting errors
+  res = res.replace(/\\\[([\s\S]*?)\\\]/g, (_, m) => {
+    const cleaned = m.replace(/\$/g, '');
+    return `\n$$\n${cleaned.trim()}\n$$\n`;
+  });
   res = res.replace(/\\\(([\s\S]*?)\\\)/g, (_, m) => `$${m.trim()}$`);
 
-  // 2. Fix the "$ $$" and "$$ $" issue (stray delimiters)
-  // This resolves the "Can't use function '$' in math mode" error.
+  // 3. Fix the "$ $$" and "$$ $" issue (stray delimiters)
   res = res.replace(/\$\s*\$\$/g, '$$');
   res = res.replace(/\$\$\s*\$/g, '$$');
 
-  // 3. Ensure display math is isolated by newlines
-  // Use a non-greedy match that stays within the $$ markers.
-  res = res.replace(/\$\$\s*([\s\S]+?)\s*\$\$/g, (_, m) => `\n$$\n${m.trim()}\n$$\n`);
+  // 4. Fix imbalanced delimiters like "$ ... $$" or "$$ ... $"
+  // We normalize them to display math ($$) if they look substantial, otherwise inline ($)
+  res = res.replace(/(\$\$?)([\s\S]+?)(\$\$?)/g, (match, start, math, end) => {
+    if (start !== end) {
+      // Imbalanced! If it contains newlines or is long, make it display math
+      const cleaned = math.replace(/\$/g, '');
+      if (cleaned.includes('\n') || cleaned.length > 50) {
+        return `\n$$\n${cleaned.trim()}\n$$\n`;
+      }
+      return `$${cleaned.trim()}$`;
+    }
+    return match; // Already balanced
+  });
 
-  // 4. Cleanup excessive newlines
+  // 5. Ensure display math is isolated by newlines and has NO internal $ signs
+  res = res.replace(/\$\$([\s\S]*?)\$\$/g, (_, m) => {
+    const cleaned = m.replace(/\$/g, '');
+    return `\n$$\n${cleaned.trim()}\n$$\n`;
+  });
+
+  // 6. Cleanup excessive newlines
   return res.replace(/\n{3,}/g, '\n\n').trim();
 }
 
