@@ -30,7 +30,8 @@ const SYSTEM_PROMPT = `You are Ember — a personal study assistant AND a META-C
 - **ALWAYS** use:
   - \`$$\` (on separate lines) for block/display equations.
   - \`$\` for inline variables and formulas (e.g., $x$ or $E=mc^2$).
-- **NO RAW LATEX**: NEVER output LaTeX commands (like \begin{...} or \int) without wrapping them in $ or $$.
+- **NO REPETITION**: Output math ONLY ONCE. Do not provide a raw version and a rendered version.
+- **NO RAW LATEX**: Every single LaTeX command (like \frac, \int, \begin) MUST be wrapped in $ or $$.
 - **CRITICAL**: ONLY wrap the math/formula. NEVER wrap normal text or sentences in $ or $$. 
 - **CRITICAL**: If you wrap words like "ce qui est" in $$, they will be joined together as "cequiest" and be unreadable. DO NOT DO THIS.
 - **NO UNICODE MATH**: NEVER use Unicode exponents like ² or ³. ALWAYS use ^2 or ^3.
@@ -98,11 +99,12 @@ function preprocessMath(content: string): string {
 
   let res = content;
 
-  // 1. Basic character cleanup
-  res = res.replace(/[‘’]/g, "'").replace(/[“”]/g, '"');
+  // 1. Basic character cleanup and Unicode normalization
+  res = res.replace(/[‘’′]/g, "'")
+           .replace(/[“”¨]/g, '"')
+           .replace(/[−–—]/g, "-");
 
-  // 2. Heuristic-based block recovery
-  // Detects sentences accidentally wrapped in $$ or \[
+  // 2. Heuristic-based block recovery (rescues sentences from $$)
   res = res.replace(/(\$\$|\\\[)([\s\S]*?)(\$\$|\\\])/g, (_, start, inner, end) => {
     const text = inner.trim();
     if (!text) return "";
@@ -110,13 +112,10 @@ function preprocessMath(content: string): string {
     const spaceCount = (text.match(/ /g) || []).length;
     const words = text.split(/\s+/);
     
-    // If it has many spaces/words, it's almost certainly a sentence, not a formula.
-    // We "rescue" it by stripping the delimiters.
     if (spaceCount > 5 || words.length > 8) {
       return `\n${text}\n`;
     }
     
-    // Otherwise, treat as math. Strip internal $ to prevent KaTeX crash.
     const cleaned = text.replace(/\$/g, '');
     return `\n$$\n${cleaned}\n$$\n`;
   });
@@ -127,7 +126,22 @@ function preprocessMath(content: string): string {
   // 4. Wrap naked LaTeX environments (e.g. \begin{pmatrix}...)
   res = res.replace(/(^|\n| )(\\begin\{[a-z\*]+\}[\s\S]*?\\end\{[a-z\*]+\})/g, (_, prefix, inner) => `${prefix}\n$$\n${inner.trim()}\n$$\n`);
 
-  // 5. Cleanup excessive newlines
+  // 5. Wrap lines that start with a LaTeX command but lack delimiters
+  // This catches things like "\frac{1}{2}" on its own line
+  res = res.replace(/(^|\n)(\\[a-zA-Z]+[\s\S]+?)($|\n)/g, (match, prefix, content, suffix) => {
+    const trimmed = content.trim();
+    if (trimmed.startsWith('$') || trimmed.endsWith('$') || trimmed.includes('$$')) return match;
+    // Only wrap if it looks like math (contains backslashes or symbols)
+    if (trimmed.includes('\\') || trimmed.includes('^') || trimmed.includes('_')) {
+      return `${prefix}\n$$\n${trimmed}\n$$\n${suffix}`;
+    }
+    return match;
+  });
+
+  // 6. Fix trailing $ issue (stray delimiters)
+  res = res.replace(/([^$])\$\s*($|\n)/g, '$1\n');
+
+  // 7. Cleanup excessive newlines
   return res.replace(/\n{3,}/g, '\n\n').trim();
 }
 
