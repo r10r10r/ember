@@ -8,6 +8,7 @@ import "katex/dist/katex.min.css";
 import { Button } from "@/components/ui/button";
 import { Send, Sparkles, Square, Trash2, AlertCircle, KeyRound, Paperclip, X, History, Plus, Pencil, Check } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { toast } from "sonner";
 import { usePdf } from "./PdfContext";
 import { GeminiSettings } from "./GeminiSettings";
 import {
@@ -25,11 +26,16 @@ const SYSTEM_PROMPT = `You are Ember — a personal study assistant AND a META-C
 
 ## LAYER 1 — STUDY ASSISTANT
 - Be concise and clear. Use markdown.
-- **MATH/FORMULAS RULE**: Use LaTeX for all mathematical expressions. Always wrap display math (own line) in $$ ... $$ and inline math (within text) in $ ... $. Use $ ... $ even for simple variables like $x$ or $p_n$.
+- **MATH/FORMULAS RULE**: You MUST use LaTeX for all mathematical expressions.
+- **IMPORTANT**: NEVER use \[ ... \] or \( ... \) as delimiters. They break the renderer.
+- **ALWAYS** use:
+  - `$$` (on separate lines) for block/display equations.
+  - `$` for inline variables and formulas (e.g., $x$ or $E=mc^2$).
+- **NEVER** nest dollar signs (e.g., $...$...$ is invalid).
 - Answer using the provided PDF context whenever possible.
 - If the PDF includes scanned page images, OCR them silently and answer from what you see.
 - Cite page numbers like (p. 3) when referencing the PDF.
-- If the answer isn't in the PDF, say so briefly, then answer from general knowledge(your knowledge or the internet).
+- If the answer isn't in the PDF, say so briefly, then answer from general knowledge (your knowledge or the internet).
 
 ---
 
@@ -305,6 +311,7 @@ export function AiChat() {
     } catch (e) {
       if ((e as Error).name === "AbortError") return;
       const msg = e instanceof Error ? e.message : "Request failed";
+      console.error("AI Stream Error:", e);
       setError(msg);
       // If we failed, remove the empty assistant message we added
       setMessages((m) => m.slice(0, -1));
@@ -521,7 +528,16 @@ export function AiChat() {
                 <div className="prose prose-sm prose-invert max-w-none prose-p:my-1 prose-pre:my-2 prose-headings:my-2">
                   <ReactMarkdown
                     remarkPlugins={[remarkMath, remarkGfm]}
-                    rehypePlugins={[rehypeRaw, [rehypeKatex, { throwOnError: false, strict: false }]]}
+                    rehypePlugins={[
+                      rehypeRaw,
+                      [rehypeKatex, { 
+                        throwOnError: false, 
+                        strict: (errorCode: string, errorMsg: string) => {
+                          console.warn(`KaTeX (${errorCode}): ${errorMsg}`);
+                          return 'ignore';
+                        }
+                      }]
+                    ]}
                   >
                     {preprocessMath(m.content) || "…"}
                   </ReactMarkdown>
@@ -536,10 +552,21 @@ export function AiChat() {
         {error && (
           <div className="flex items-start gap-2 rounded-md bg-destructive/15 border border-destructive/30 px-3 py-2 text-xs text-destructive">
             <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <div className="font-medium">Couldn't reach Gemini</div>
-              <div className="opacity-80 break-words">{error}</div>
+              <div className="opacity-80 break-words line-clamp-2">{error}</div>
             </div>
+            <Button 
+              size="sm" 
+              variant="ghost" 
+              className="h-7 px-2 text-[10px] hover:bg-destructive/20"
+              onClick={() => {
+                navigator.clipboard.writeText(error);
+                toast.success("Error copied to clipboard");
+              }}
+            >
+              Copy Error
+            </Button>
           </div>
         )}
       </div>
