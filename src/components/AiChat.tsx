@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import remarkGfm from "remark-gfm";
-import rehypeMathJax from "rehype-mathjax/svg";
+import rehypeKatex from "rehype-katex";
 import rehypeRaw from "rehype-raw";
+import "katex/dist/katex.min.css";
 import { Button } from "@/components/ui/button";
 import { Send, Sparkles, Square, Trash2, AlertCircle, KeyRound, Paperclip, X, History, Plus, Pencil, Check } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription } from "@/components/ui/sheet";
@@ -576,7 +577,14 @@ export function AiChat() {
                   <div className="prose prose-sm prose-invert max-w-none prose-p:my-1 prose-pre:my-2 prose-headings:my-2">
                     <ReactMarkdown
                       remarkPlugins={[remarkMath, remarkGfm]}
-                      rehypePlugins={[rehypeRaw, rehypeMathJax]}
+                      rehypePlugins={[
+                        rehypeRaw,
+                        [rehypeKatex, { 
+                          output: 'html',
+                          throwOnError: false,
+                          strict: false
+                        }]
+                      ]}
                     >
                       {preprocessMath(m.content) || "…"}
                     </ReactMarkdown>

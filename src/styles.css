@@ -112,8 +112,21 @@
 }
 
 .katex-mathml {
-  @apply sr-only;
   display: none !important;
+}
+
+.katex-html {
+  display: inline-block !important;
+}
+
+/* Ensure inline math stays inline */
+span.katex-display {
+  display: block;
+  margin: 1em 0;
+}
+span.katex {
+  display: inline-block;
+  white-space: nowrap;
 }
 
 .katex-error {
