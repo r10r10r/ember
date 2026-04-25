@@ -88,23 +88,21 @@ function preprocessMath(content: string): string {
 
   let newContent = content;
 
-  // 1. Fix cases where display math uses single [ ] instead of $$ $$
-  // Often happens if the leading \ is missing.
-  newContent = newContent.replace(/(^|\n)\[\s*([\s\S]*?)\s*\]($|\n)/g, (match, start, math, end) => {
-    // Only convert if it looks like math (contains backslashes or math operators)
-    if (math.includes('\\') || math.includes('_') || math.includes('^') || math.includes('{')) {
-      return `${start}\n$$\n${math.trim()}\n$$\n${end}`;
-    }
-    return match;
+  // 1. Normalize LaTeX delimiters AI often uses
+  // \[ ... \] -> $$ ... $$
+  newContent = newContent.replace(/\\\[([\s\S]*?)\\\]/g, (_, math) => `\n$$\n${math.trim()}\n$$\n`);
+  // \( ... \) -> $ ... $
+  newContent = newContent.replace(/\\\(([\s\S]*?)\\\)/g, (_, math) => `$${math.trim()}$`);
+
+  // 2. Ensure all $$ blocks are properly isolated by newlines
+  // This is critical for remark-math to detect them as blocks.
+  newContent = newContent.replace(/\$\$([\s\S]*?)\$\$/g, (match, math) => {
+    // Only wrap if it's not already wrapped or if it's inline-style $$ (which is rare but happens)
+    return `\n$$\n${math.trim()}\n$$\n`;
   });
 
-  // 2. Fix standard but less compatible delimiters
-  newContent = newContent
-    .replace(/\\\[([\s\S]*?)\\\]/g, (_, math) => `\n$$\n${math.trim()}\n$$\n`)
-    .replace(/\\\(([\s\S]*?)\\\)/g, (_, math) => `$${math.trim()}$`);
-
-  // 3. Prevent doubling: If we have $ $ inside $$ $$, remove the inner ones
-  newContent = newContent.replace(/\$\$\s*\$([\s\S]*?)\$\s*\$\$/g, (_, math) => `$$\n${math.trim()}\n$$`);
+  // 3. Cleanup: prevent triple/quadruple newlines created by replacements
+  newContent = newContent.replace(/\n{3,}/g, '\n\n');
 
   return newContent;
 }
@@ -525,7 +523,7 @@ export function AiChat() {
                 <div className="prose prose-sm prose-invert max-w-none prose-p:my-1 prose-pre:my-2 prose-headings:my-2">
                   <ReactMarkdown
                     remarkPlugins={[remarkMath, remarkGfm]}
-                    rehypePlugins={[rehypeRaw, rehypeKatex]}
+                    rehypePlugins={[rehypeRaw, [rehypeKatex, { throwOnError: false, strict: false }]]}
                   >
                     {preprocessMath(m.content) || "…"}
                   </ReactMarkdown>

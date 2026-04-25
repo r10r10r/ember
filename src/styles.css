@@ -101,3 +101,24 @@
 @utility reveal-in {
   animation: objective-in 200ms ease-out forwards;
 }
+
+/* KaTeX Refinements */
+.katex-display {
+  @apply my-4 overflow-x-auto overflow-y-hidden py-2;
+}
+
+.katex {
+  @apply text-foreground font-medium;
+}
+
+.katex-error {
+  @apply text-destructive border-b border-dashed border-destructive/50 italic;
+  background: transparent !important;
+}
+
+/* Ensure math doesn't break the layout */
+.prose .katex-display {
+  margin-left: 0;
+  margin-right: 0;
+  width: 100%;
+}
