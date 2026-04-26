@@ -10,12 +10,13 @@ export function ClockDate() {
   }, []);
 
   return (
-    <div className="flex flex-col items-end p-4 text-muted-foreground/60 select-none pointer-events-none">
-      <div className="text-2xl font-mono font-bold tracking-tighter tabular-nums">
+    <div className="flex items-center gap-3 px-3 py-1 rounded-full bg-muted/30 border border-border/40 select-none">
+      <div className="text-sm font-mono font-bold tracking-tight tabular-nums text-foreground/80">
         {format(time, "HH:mm:ss")}
       </div>
-      <div className="text-[10px] uppercase tracking-widest font-medium">
-        {format(time, "EEEE, MMMM do, yyyy")}
+      <div className="w-px h-3 bg-border/60"></div>
+      <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground whitespace-nowrap">
+        {format(time, "EEE, MMM do")}
       </div>
     </div>
   );
