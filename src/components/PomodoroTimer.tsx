@@ -13,6 +13,7 @@ import {
   Pencil,
   X,
 } from "lucide-react";
+import { recordSession, recordObjectiveCompletion, recordFocusTime } from "@/lib/stats";
 
 type Mode = "focus" | "short" | "long";
 type Objective = { id: string; text: string; done: boolean; createdAt: number };
@@ -103,7 +104,10 @@ export function PomodoroTimer() {
     intervalRef.current = setInterval(() => {
       setSecondsLeft((s) => {
         if (s <= 1) {
-          if (mode === "focus") setCompletedSessions((c) => c + 1);
+          if (mode === "focus") {
+            setCompletedSessions((c) => c + 1);
+            recordSession();
+          }
           setRunning(false);
           return 0;
         }
@@ -113,6 +117,14 @@ export function PomodoroTimer() {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
+  }, [running, mode]);
+
+  useEffect(() => {
+    if (!running || mode !== "focus") return;
+    const interval = setInterval(() => {
+      recordFocusTime(10); // report every 10 seconds to keep stats fresh
+    }, 10000);
+    return () => clearInterval(interval);
   }, [running, mode]);
 
   const switchMode = (m: Mode) => {
@@ -160,7 +172,12 @@ export function PomodoroTimer() {
   };
 
   const toggle = (id: string) =>
-    setObjectives((o) => o.map((x) => (x.id === id ? { ...x, done: !x.done } : x)));
+    setObjectives((o) =>
+      o.map((x) => {
+        if (x.id === id && !x.done) recordObjectiveCompletion();
+        return x.id === id ? { ...x, done: !x.done } : x;
+      })
+    );
   const remove = (id: string) => setObjectives((o) => o.filter((x) => x.id !== id));
   const clearDone = () => setObjectives((o) => o.filter((x) => !x.done));
 
