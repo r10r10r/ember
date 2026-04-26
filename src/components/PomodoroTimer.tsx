@@ -13,16 +13,11 @@ import {
   Pencil,
   X,
 } from "lucide-react";
-import { recordSession, recordObjectiveCompletion, recordFocusTime } from "@/lib/stats";
+import { recordObjectiveCompletion } from "@/lib/stats";
+import { useTimer } from "./TimerContext";
 
 type Mode = "focus" | "short" | "long";
 type Objective = { id: string; text: string; done: boolean; createdAt: number };
-
-const DEFAULT_DURATIONS: Record<Mode, number> = {
-  focus: 25 * 60,
-  short: 5 * 60,
-  long: 15 * 60,
-};
 
 const MODE_LABEL: Record<Mode, string> = {
   focus: "Focus",
@@ -31,7 +26,6 @@ const MODE_LABEL: Record<Mode, string> = {
 };
 
 const STORAGE_KEY = "ember.objectives.v1";
-const STATS_KEY = "ember.stats.v1";
 const DURATIONS_KEY = "ember.durations.v1";
 
 function loadObjectives(): Objective[] {
@@ -43,24 +37,6 @@ function loadObjectives(): Objective[] {
   }
 }
 
-function loadCompleted(): number {
-  try {
-    return Number(localStorage.getItem(STATS_KEY)) || 0;
-  } catch {
-    return 0;
-  }
-}
-
-function loadDurations(): Record<Mode, number> {
-  try {
-    const raw = localStorage.getItem(DURATIONS_KEY);
-    if (!raw) return DEFAULT_DURATIONS;
-    return { ...DEFAULT_DURATIONS, ...JSON.parse(raw) };
-  } catch {
-    return DEFAULT_DURATIONS;
-  }
-}
-
 function format(s: number) {
   const h = Math.floor(s / 3600);
   const m = Math.floor((s % 3600) / 60).toString().padStart(2, "0");
@@ -69,18 +45,22 @@ function format(s: number) {
 }
 
 export function PomodoroTimer() {
-  const [durations, setDurations] = useState<Record<Mode, number>>(() => loadDurations());
-  const [mode, setMode] = useState<Mode>("focus");
-  const [secondsLeft, setSecondsLeft] = useState(durations.focus);
-  const [running, setRunning] = useState(false);
+  const {
+    mode,
+    secondsLeft,
+    running,
+    setRunning,
+    setMode,
+    reset,
+    setSecondsLeft,
+    completedSessions,
+  } = useTimer();
+
   const [editingTime, setEditingTime] = useState(false);
   const [draftMinutes, setDraftMinutes] = useState("25");
 
   const [objectives, setObjectives] = useState<Objective[]>(() => loadObjectives());
   const [newObj, setNewObj] = useState("");
-  const [completedSessions, setCompletedSessions] = useState(() => loadCompleted());
-
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -88,67 +68,18 @@ export function PomodoroTimer() {
   }, [objectives]);
 
   useEffect(() => {
-    localStorage.setItem(STATS_KEY, String(completedSessions));
-  }, [completedSessions]);
-
-  useEffect(() => {
-    localStorage.setItem(DURATIONS_KEY, JSON.stringify(durations));
-  }, [durations]);
-
-  useEffect(() => {
     document.title = `${format(secondsLeft)} — Ember`;
   }, [secondsLeft]);
 
-  useEffect(() => {
-    if (!running) return;
-    intervalRef.current = setInterval(() => {
-      setSecondsLeft((s) => {
-        if (s <= 1) {
-          if (mode === "focus") {
-            setCompletedSessions((c) => c + 1);
-            recordSession();
-          }
-          setRunning(false);
-          return 0;
-        }
-        return s - 1;
-      });
-    }, 1000);
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [running, mode]);
-
-  useEffect(() => {
-    if (!running || mode !== "focus") return;
-    const interval = setInterval(() => {
-      recordFocusTime(10); // report every 10 seconds to keep stats fresh
-    }, 10000);
-    return () => clearInterval(interval);
-  }, [running, mode]);
-
-  const switchMode = (m: Mode) => {
-    setMode(m);
-    setSecondsLeft(durations[m]);
-    setRunning(false);
-    setEditingTime(false);
-  };
-
-  const reset = () => {
-    setSecondsLeft(durations[mode]);
-    setRunning(false);
-  };
-
   const startEditTime = () => {
     if (running) return;
-    setDraftMinutes(String(Math.max(1, Math.round(durations[mode] / 60))));
+    setDraftMinutes(String(Math.max(1, Math.round(secondsLeft / 60))));
     setEditingTime(true);
   };
 
   const saveTime = () => {
     const mins = Math.max(1, Math.min(600, parseInt(draftMinutes, 10) || 1));
     const secs = mins * 60;
-    setDurations((d) => ({ ...d, [mode]: secs }));
     setSecondsLeft(secs);
     setEditingTime(false);
   };
@@ -157,17 +88,13 @@ export function PomodoroTimer() {
     const text = newObj.trim();
     if (!text) return;
     const item: Objective = {
-      id:
-        typeof crypto !== "undefined" && "randomUUID" in crypto
-          ? crypto.randomUUID()
-          : `${Date.now()}-${Math.random()}`,
+      id: crypto.randomUUID(),
       text,
       done: false,
       createdAt: Date.now(),
     };
     setObjectives((o) => [item, ...o]);
     setNewObj("");
-    // ensure the new (top) item is visible
     requestAnimationFrame(() => listRef.current?.scrollTo({ top: 0, behavior: "smooth" }));
   };
 
@@ -181,7 +108,7 @@ export function PomodoroTimer() {
   const remove = (id: string) => setObjectives((o) => o.filter((x) => x.id !== id));
   const clearDone = () => setObjectives((o) => o.filter((x) => !x.done));
 
-  const total = durations[mode];
+  const total = mode === "focus" ? 25 * 60 : mode === "short" ? 5 * 60 : 15 * 60;
   const progress = ((total - secondsLeft) / total) * 100;
   const accent = mode === "focus" ? "var(--focus)" : "var(--break)";
 
@@ -194,7 +121,7 @@ export function PomodoroTimer() {
           {(["focus", "short", "long"] as Mode[]).map((m) => (
             <button
               key={m}
-              onClick={() => switchMode(m)}
+              onClick={() => setMode(m)}
               className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${
                 mode === m
                   ? "bg-card text-foreground shadow-sm"
@@ -210,7 +137,6 @@ export function PomodoroTimer() {
         </p>
       </div>
 
-      {/* Timer */}
       <div className="flex flex-col items-center justify-center rounded-2xl border bg-card/70 backdrop-blur p-5 shadow-sm">
         <div className="relative h-40 w-40">
           <svg className="h-full w-full -rotate-90" viewBox="0 0 100 100">
@@ -282,7 +208,7 @@ export function PomodoroTimer() {
             </>
           ) : (
             <>
-              <Button size="sm" onClick={() => setRunning((r) => !r)} className="min-w-24">
+              <Button size="sm" onClick={() => setRunning(!running)} className="min-w-24">
                 {running ? <Pause className="mr-2 h-4 w-4" /> : <Play className="mr-2 h-4 w-4" />}
                 {running ? "Pause" : "Start"}
               </Button>
@@ -294,7 +220,6 @@ export function PomodoroTimer() {
         </div>
       </div>
 
-      {/* Objectives */}
       <div className="flex-1 rounded-2xl border bg-card/70 backdrop-blur p-4 shadow-sm flex flex-col min-h-0">
         <div className="flex items-center justify-between mb-2">
           <h2 className="font-semibold text-sm">Objectives</h2>
@@ -341,7 +266,6 @@ export function PomodoroTimer() {
                 <button
                   type="button"
                   onClick={() => toggle(o.id)}
-                  aria-label={o.done ? "Mark not done" : "Mark done"}
                   className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-colors ${
                     o.done
                       ? "bg-primary border-primary text-primary-foreground"
@@ -362,7 +286,6 @@ export function PomodoroTimer() {
                 <button
                   type="button"
                   onClick={() => remove(o.id)}
-                  aria-label="Delete objective"
                   className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity p-1 -m-1"
                 >
                   <Trash2 className="h-3.5 w-3.5" />

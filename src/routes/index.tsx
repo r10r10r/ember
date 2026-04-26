@@ -11,6 +11,7 @@ import { StudyPlanWidget } from "@/components/StudyPlanWidget";
 import { GamesWidget } from "@/components/GamesWidget";
 import { ClockDate } from "@/components/ClockDate";
 import { HeaderNotifications } from "@/components/HeaderNotifications";
+import { TimerProvider } from "@/components/TimerContext";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -31,7 +32,8 @@ function Index() {
 
   return (
     <PdfProvider>
-      <div className="flex h-screen w-screen flex-col overflow-hidden bg-background">
+      <TimerProvider>
+        <div className="flex h-screen w-screen flex-col overflow-hidden bg-background">
         <header className="flex items-center justify-between border-b border-border/60 bg-card/40 backdrop-blur px-5 py-2 shrink-0 z-20">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
@@ -106,6 +108,7 @@ function Index() {
           <GamesWidget visible={activeTab === 'games'} />
         </div>
       </div>
+      </TimerProvider>
     </PdfProvider>
   );
 }

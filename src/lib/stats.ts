@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 export interface DailyStat {
   date: string; // YYYY-MM-DD
   focusSeconds: number;
+  restSeconds: number;
   sessions: number;
   objectivesCompleted: number;
 }
@@ -48,6 +49,27 @@ export function recordFocusTime(seconds: number) {
     stats.push({
       date: today,
       focusSeconds: seconds,
+      restSeconds: 0,
+      sessions: 0,
+      objectivesCompleted: 0,
+    });
+  }
+  saveStats(stats);
+  window.dispatchEvent(new Event("ember-stats-updated"));
+}
+
+export function recordRestTime(seconds: number) {
+  const stats = loadStats();
+  const today = getTodayStr();
+  const index = stats.findIndex((s) => s.date === today);
+
+  if (index !== -1) {
+    stats[index].restSeconds += seconds;
+  } else {
+    stats.push({
+      date: today,
+      focusSeconds: 0,
+      restSeconds: seconds,
       sessions: 0,
       objectivesCompleted: 0,
     });
@@ -67,6 +89,7 @@ export function recordSession() {
     stats.push({
       date: today,
       focusSeconds: 0,
+      restSeconds: 0,
       sessions: 1,
       objectivesCompleted: 0,
     });
@@ -86,6 +109,7 @@ export function recordObjectiveCompletion() {
     stats.push({
       date: today,
       focusSeconds: 0,
+      restSeconds: 0,
       sessions: 0,
       objectivesCompleted: 1,
     });
