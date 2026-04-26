@@ -13,9 +13,11 @@ export function HeaderNotifications() {
   const now = new Date();
   const hour = getHours(now);
   
-  // From 6am to 10pm (22:00), show Today. Otherwise show Tomorrow.
-  const isTodayMode = hour >= 6 && hour < 22;
-  const targetDate = isTodayMode ? now : addDays(now, 1);
+  // Planning Mode: 9 PM (21:00) to Midnight (00:00)
+  // During this time, we show Tomorrow's schedule.
+  // Otherwise, we show Today's schedule.
+  const isPlanningMode = hour >= 21; 
+  const targetDate = isPlanningMode ? addDays(now, 1) : now;
   const targetDateStr = format(targetDate, "yyyy-MM-dd");
   
   const events = plan.filter((e) => e.date === targetDateStr);
@@ -37,7 +39,7 @@ export function HeaderNotifications() {
         <div className="grid gap-4">
           <div className="space-y-2">
             <h4 className="font-medium leading-none">
-              {isTodayMode ? "Today's Schedule" : "Tomorrow's Schedule"}
+              {isPlanningMode ? "Planning Mode (Tomorrow)" : "Today's Schedule"}
             </h4>
             <p className="text-sm text-muted-foreground">
               {format(targetDate, "EEEE, MMM do")}
@@ -46,7 +48,7 @@ export function HeaderNotifications() {
           <div className="grid gap-2">
             {events.length === 0 ? (
               <p className="text-sm text-center py-4 text-muted-foreground">
-                Nothing scheduled for {isTodayMode ? "today" : "tomorrow"}.
+                Nothing scheduled for {isPlanningMode ? "tomorrow" : "today"}.
               </p>
             ) : (
               events.map((event) => (
