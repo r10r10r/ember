@@ -3,7 +3,6 @@ import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import remarkGfm from "remark-gfm";
 import rehypeKatex from "rehype-katex";
-import rehypeRaw from "rehype-raw";
 import "katex/dist/katex.min.css";
 import { Button } from "@/components/ui/button";
 import { Send, Sparkles, Square, Trash2, AlertCircle, KeyRound, Paperclip, X, History, Plus, Pencil, Check } from "lucide-react";
@@ -114,48 +113,68 @@ function preprocessMath(content: string): string {
   let res = content;
 
   // 1. Basic character cleanup and Unicode normalization
-  res = res.replace(/[‘’′]/g, "'")
-    .replace(/[“”¨]/g, '"')
-    .replace(/[−–—]/g, "-");
+  res = res.replace(/['\u2018\u2019\u2032]/g, "'")
+    .replace(/["\u201C\u201D\u00A8]/g, '"')
+    .replace(/[\u2212\u2013\u2014]/g, "-");
 
-  // 2. Heuristic-based block recovery (rescues sentences from $$)
-  res = res.replace(/(\$\$|\\\[)([\s\S]*?)(\$\$|\\\])/g, (_, start, inner, end) => {
-    const text = inner.trim();
-    if (!text) return "";
+  // 2. Protect existing valid math blocks so later steps don't corrupt them
+  const mathBlocks: string[] = [];
+  const placeholder = (i: number) => `%%MATH_BLOCK_${i}%%`;
 
-    const spaceCount = (text.match(/ /g) || []).length;
-    const words = text.split(/\s+/);
-
-    if (spaceCount > 5 || words.length > 8) {
-      return `\n${text}\n`;
-    }
-
-    const cleaned = text.replace(/\$/g, '');
-    return `\n$$\n${cleaned}\n$$\n`;
+  // Protect display math: $$ ... $$
+  res = res.replace(/\$\$([\s\S]*?)\$\$/g, (match, inner) => {
+    const trimmed = inner.trim();
+    if (!trimmed) return "";
+    mathBlocks.push(`$$\n${trimmed}\n$$`);
+    return `\n${placeholder(mathBlocks.length - 1)}\n`;
   });
 
-  // 3. Normalize inline \( \)
-  res = res.replace(/\\\(([\s\S]*?)\\\)/g, (_, m) => `$${m.trim()}$`);
+  // Protect \[ ... \] display math
+  res = res.replace(/\\\[([\s\S]*?)\\\]/g, (_, inner) => {
+    const trimmed = inner.trim();
+    if (!trimmed) return "";
+    mathBlocks.push(`$$\n${trimmed}\n$$`);
+    return `\n${placeholder(mathBlocks.length - 1)}\n`;
+  });
 
-  // 4. Wrap naked LaTeX environments (e.g. \begin{pmatrix}...)
-  res = res.replace(/(^|\n| )(\\begin\{[a-z\*]+\}[\s\S]*?\\end\{[a-z\*]+\})/g, (_, prefix, inner) => `${prefix}\n$$\n${inner.trim()}\n$$\n`);
+  // Protect inline math: $ ... $ (single dollar, non-greedy, must not be escaped)
+  res = res.replace(/(?<!\$)\$(?!\$)((?:[^$\\]|\\.)+)\$(?!\$)/g, (match, inner) => {
+    const trimmed = inner.trim();
+    if (!trimmed) return match;
+    mathBlocks.push(`$${trimmed}$`);
+    return placeholder(mathBlocks.length - 1);
+  });
 
-  // 5. Wrap lines that start with a LaTeX command but lack delimiters
-  // This catches things like "\frac{1}{2}" on its own line
-  res = res.replace(/(^|\n)(\\[a-zA-Z]+[\s\S]+?)($|\n)/g, (match, prefix, content, suffix) => {
+  // Protect inline \( ... \)
+  res = res.replace(/\\\(([\s\S]*?)\\\)/g, (_, inner) => {
+    const trimmed = inner.trim();
+    if (!trimmed) return "";
+    mathBlocks.push(`$${trimmed}$`);
+    return placeholder(mathBlocks.length - 1);
+  });
+
+  // 3. Wrap naked LaTeX environments (e.g. \begin{align}... without $$ delimiters)
+  res = res.replace(/(^|\n)(\\begin\{[a-zA-Z*]+\}[\s\S]*?\\end\{[a-zA-Z*]+\})/gm, (_, prefix, inner) => {
+    const trimmed = inner.trim();
+    mathBlocks.push(`$$\n${trimmed}\n$$`);
+    return `${prefix}\n${placeholder(mathBlocks.length - 1)}\n`;
+  });
+
+  // 4. Wrap standalone lines that are purely LaTeX commands (no normal text mixed in)
+  res = res.replace(/(^|\n)(\\(?:frac|sqrt|sum|prod|int|lim|log|ln|sin|cos|tan|det|max|min|sup|inf|vec|hat|bar|dot|ddot|tilde|mathbb|mathcal|mathfrak|mathrm|text|left|right|Big|bigg|Bigg)\b[^\n]*?)(\n|$)/gm, (match, prefix, content, suffix) => {
     const trimmed = content.trim();
-    if (trimmed.startsWith('$') || trimmed.endsWith('$') || trimmed.includes('$$')) return match;
-    // Only wrap if it looks like math (contains backslashes or symbols)
-    if (trimmed.includes('\\') || trimmed.includes('^') || trimmed.includes('_')) {
-      return `${prefix}\n$$\n${trimmed}\n$$\n${suffix}`;
-    }
-    return match;
+    // Skip if already wrapped or is a placeholder
+    if (trimmed.includes('%%MATH_BLOCK_')) return match;
+    mathBlocks.push(`$$\n${trimmed}\n$$`);
+    return `${prefix}\n${placeholder(mathBlocks.length - 1)}\n`;
   });
 
-  // 6. Fix trailing $ issue (stray delimiters)
-  res = res.replace(/([^$])\$\s*($|\n)/g, '$1\n');
+  // 5. Restore all protected math blocks
+  for (let i = 0; i < mathBlocks.length; i++) {
+    res = res.replace(placeholder(i), mathBlocks[i]);
+  }
 
-  // 7. Cleanup excessive newlines
+  // 6. Cleanup excessive newlines
   return res.replace(/\n{3,}/g, '\n\n').trim();
 }
 
@@ -576,13 +595,14 @@ export function AiChat() {
                 ) : m.role === "assistant" ? (
                   <div className="prose prose-sm prose-invert max-w-none prose-p:my-1 prose-pre:my-2 prose-headings:my-2">
                     <ReactMarkdown
-                      remarkPlugins={[remarkMath, remarkGfm]}
+                      remarkPlugins={[[remarkMath, { singleDollarTextMath: true }], remarkGfm]}
                       rehypePlugins={[
-                        rehypeRaw,
                         [rehypeKatex, { 
-                          output: 'html',
+                          output: 'htmlAndMathml',
                           throwOnError: false,
-                          strict: false
+                          strict: false,
+                          trust: true,
+                          globalGroup: true
                         }]
                       ]}
                     >

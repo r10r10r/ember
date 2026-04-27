@@ -105,14 +105,23 @@
 /* KaTeX Refinements */
 .katex-display {
   @apply my-4 overflow-x-auto overflow-y-hidden py-2;
+  text-align: center;
 }
 
 .katex {
-  @apply text-foreground font-medium;
+  @apply text-foreground;
+  font-size: 1.05em;
 }
 
+/* Visually hide MathML but keep for accessibility */
 .katex-mathml {
-  display: none !important;
+  position: absolute !important;
+  clip: rect(1px, 1px, 1px, 1px) !important;
+  padding: 0 !important;
+  border: 0 !important;
+  height: 1px !important;
+  width: 1px !important;
+  overflow: hidden !important;
 }
 
 .katex-html {
@@ -129,10 +138,14 @@ span.katex {
   white-space: nowrap;
 }
 
+/* Style KaTeX errors gracefully — show the raw LaTeX instead of breaking */
 .katex-error {
-  @apply text-destructive border-b border-dashed border-destructive/50 italic;
+  @apply text-foreground/80 italic;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9em;
   background: transparent !important;
   white-space: normal !important;
+  color: inherit !important;
 }
 
 /* Ensure math doesn't break the layout */
@@ -140,4 +153,9 @@ span.katex {
   margin-left: 0;
   margin-right: 0;
   width: 100%;
+}
+
+/* Make sure display math inside prose has proper spacing */
+.prose .katex-display > .katex {
+  text-align: center;
 }
