@@ -5,7 +5,7 @@ import remarkGfm from "remark-gfm";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
 import { Button } from "@/components/ui/button";
-import { Send, Sparkles, Square, Trash2, AlertCircle, KeyRound, Paperclip, X, History, Plus, Pencil, Check } from "lucide-react";
+import { Send, Sparkles, Square, Trash2, AlertCircle, KeyRound, Paperclip, X, History, Plus, Pencil, Check, Download, Copy } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription } from "@/components/ui/sheet";
 import { toast } from "sonner";
 import { usePdf } from "./PdfContext";
@@ -296,9 +296,49 @@ export function AiChat() {
   const [attachments, setAttachments] = useState<{ name: string; dataUrl: string; mimeType: string }[]>([]);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editInput, setEditInput] = useState("");
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameInput, setRenameInput] = useState("");
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Auto-generate a short title for a chat session from its first exchange
+  const generateTitle = async (sessionId: string, userMsg: string, aiReply: string) => {
+    try {
+      const titlePrompt: ChatMessage[] = [
+        { role: "system", content: "Generate a short title (3-6 words max) for this conversation. Reply with ONLY the title, no quotes, no punctuation at the end." },
+        { role: "user", content: userMsg },
+        { role: "assistant", content: aiReply.slice(0, 500) },
+        { role: "user", content: "What is a good short title for this conversation?" },
+      ];
+      let title = "";
+      for await (const chunk of streamChat(cfg, titlePrompt)) {
+        title += chunk;
+        if (title.length > 60) break; // safety cap
+      }
+      title = title.replace(/["']/g, '').trim().slice(0, 50) || "New Chat";
+      setSessions(prev => prev.map(s => {
+        if (s.id !== sessionId) return s;
+        const updated = { ...s, title };
+        void saveSession(updated);
+        return updated;
+      }));
+    } catch {
+      // Title generation failed — keep the default title, no big deal
+    }
+  };
+
+  const renameSession = (id: string, newTitle: string) => {
+    const title = newTitle.trim().slice(0, 60) || "New Chat";
+    setSessions(prev => prev.map(s => {
+      if (s.id !== id) return s;
+      const updated = { ...s, title };
+      void saveSession(updated);
+      return updated;
+    }));
+    setRenamingId(null);
+    setRenameInput("");
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -364,8 +404,8 @@ export function AiChat() {
       ...nextMessages.map((m) => ({ role: m.role, content: m.content, attachments: m.attachments })),
     ];
 
+    let acc = "";
     try {
-      let acc = "";
       setMessages((m) => [...m, { role: "assistant", content: "" }]);
       for await (const chunk of streamChat(cfg, payload, ctrl.signal)) {
         acc += chunk;
@@ -385,6 +425,22 @@ export function AiChat() {
     } finally {
       setBusy(false);
       abortRef.current = null;
+
+      // Auto-generate title for new sessions (first exchange)
+      const currentId = activeIdRef.current;
+      if (currentId) {
+        const session = sessions.find(s => s.id === currentId);
+        // Only auto-title if session has exactly 2 messages (first user + first assistant)
+        // and the title still looks like a default (truncated first message)
+        if (session && session.messages.length <= 2) {
+          const lastMsgs = nextMessages;
+          const userMsg = lastMsgs.find(m => m.role === 'user')?.content || '';
+          const aiReply = lastMsgs.length > 0 ? acc : '';
+          if (userMsg && aiReply) {
+            void generateTitle(currentId, userMsg, aiReply);
+          }
+        }
+      }
     }
   };
 
@@ -493,15 +549,47 @@ export function AiChat() {
                     onClick={() => { setActiveId(s.id); activeIdRef.current = s.id; }}
                   >
                     <div className="flex justify-between items-center mb-1">
-                      <span className="font-medium text-sm truncate pr-2">{s.title || "New Chat"}</span>
-                      <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive" onClick={(e) => {
-                        e.stopPropagation();
-                        void deleteSession(s.id);
-                        setSessions(prev => prev.filter(x => x.id !== s.id));
-                        if (activeId === s.id) { setActiveId(null); activeIdRef.current = null; }
-                      }}>
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
+                      {renamingId === s.id ? (
+                        <div className="flex items-center gap-1 flex-1 min-w-0" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            autoFocus
+                            value={renameInput}
+                            onChange={(e) => setRenameInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') renameSession(s.id, renameInput);
+                              if (e.key === 'Escape') { setRenamingId(null); setRenameInput(''); }
+                            }}
+                            className="flex-1 min-w-0 bg-background border rounded px-1.5 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                          />
+                          <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0" onClick={(e) => { e.stopPropagation(); renameSession(s.id, renameInput); }}>
+                            <Check className="h-3 w-3" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0" onClick={(e) => { e.stopPropagation(); setRenamingId(null); setRenameInput(''); }}>
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <>
+                          <span className="font-medium text-sm truncate pr-2">{s.title || "New Chat"}</span>
+                          <div className="flex items-center gap-0.5 shrink-0">
+                            <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-foreground" onClick={(e) => {
+                              e.stopPropagation();
+                              setRenamingId(s.id);
+                              setRenameInput(s.title || '');
+                            }}>
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={(e) => {
+                              e.stopPropagation();
+                              void deleteSession(s.id);
+                              setSessions(prev => prev.filter(x => x.id !== s.id));
+                              if (activeId === s.id) { setActiveId(null); activeIdRef.current = null; }
+                            }}>
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </>
+                      )}
                     </div>
                     <span className="text-xs text-muted-foreground">{new Date(s.updatedAt).toLocaleString()} · {s.messages.length} msgs</span>
                   </div>
@@ -605,6 +693,49 @@ export function AiChat() {
                           globalGroup: true
                         }]
                       ]}
+                      components={{
+                        code({ className, children, ...props }) {
+                          const match = /language-(\w+)/.exec(className || '');
+                          const codeStr = String(children).replace(/\n$/, '');
+                          const isBlock = match || codeStr.includes('\n');
+                          if (!isBlock) {
+                            return <code className={className} {...props}>{children}</code>;
+                          }
+                          const lang = match?.[1] || 'txt';
+                          const ext = ({ python: 'py', javascript: 'js', typescript: 'ts', jsx: 'jsx', tsx: 'tsx', html: 'html', css: 'css', json: 'json', markdown: 'md', sql: 'sql', bash: 'sh', shell: 'sh', java: 'java', cpp: 'cpp', c: 'c', rust: 'rs', go: 'go', ruby: 'rb', php: 'php', yaml: 'yml', xml: 'xml', latex: 'tex', tex: 'tex' } as Record<string, string>)[lang] || 'txt';
+                          return (
+                            <div className="relative group/code">
+                              <div className="absolute right-2 top-2 flex gap-1 opacity-0 group-hover/code:opacity-100 transition-opacity z-10">
+                                <button
+                                  onClick={() => { navigator.clipboard.writeText(codeStr); toast.success('Copied!'); }}
+                                  className="p-1.5 rounded-md bg-background/80 hover:bg-background border border-border/50 text-muted-foreground hover:text-foreground transition-colors"
+                                  title="Copy code"
+                                >
+                                  <Copy className="h-3.5 w-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    const blob = new Blob([codeStr], { type: 'text/plain' });
+                                    const url = URL.createObjectURL(blob);
+                                    const a = document.createElement('a');
+                                    a.href = url;
+                                    a.download = `code.${ext}`;
+                                    a.click();
+                                    URL.revokeObjectURL(url);
+                                    toast.success(`Downloaded code.${ext}`);
+                                  }}
+                                  className="p-1.5 rounded-md bg-background/80 hover:bg-background border border-border/50 text-muted-foreground hover:text-foreground transition-colors"
+                                  title="Download file"
+                                >
+                                  <Download className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                              <div className="absolute left-3 top-2 text-[10px] font-mono text-muted-foreground/60 uppercase">{lang}</div>
+                              <code className={className} {...props}>{children}</code>
+                            </div>
+                          );
+                        },
+                      }}
                     >
                       {preprocessMath(m.content) || "…"}
                     </ReactMarkdown>

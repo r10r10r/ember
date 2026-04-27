@@ -6,6 +6,7 @@ type Mode = "focus" | "short" | "long";
 interface TimerContextType {
   mode: Mode;
   secondsLeft: number;
+  totalDuration: number;
   running: boolean;
   setRunning: (r: boolean) => void;
   setMode: (m: Mode) => void;
@@ -25,7 +26,8 @@ const DEFAULT_DURATIONS: Record<Mode, number> = {
 
 export const TimerProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [mode, setMode] = useState<Mode>("focus");
-  const [secondsLeft, setSecondsLeft] = useState(DEFAULT_DURATIONS.focus);
+  const [secondsLeft, setSecondsLeftRaw] = useState(DEFAULT_DURATIONS.focus);
+  const [totalDuration, setTotalDuration] = useState(DEFAULT_DURATIONS.focus);
   const [running, setRunning] = useState(false);
   const [completedSessions, setCompletedSessions] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -33,7 +35,7 @@ export const TimerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => {
     if (!running) return;
     intervalRef.current = setInterval(() => {
-      setSecondsLeft((s) => {
+      setSecondsLeftRaw((s) => {
         if (s <= 1) {
           if (mode === "focus") {
             setCompletedSessions((c) => c + 1);
@@ -61,13 +63,24 @@ export const TimerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [running, mode]);
 
   const reset = () => {
-    setSecondsLeft(DEFAULT_DURATIONS[mode]);
+    setSecondsLeftRaw(DEFAULT_DURATIONS[mode]);
+    setTotalDuration(DEFAULT_DURATIONS[mode]);
     setRunning(false);
   };
 
   const addRestTime = (minutes: number) => {
-    setSecondsLeft((s) => s + minutes * 60);
+    setSecondsLeftRaw((s) => {
+      const newVal = s + minutes * 60;
+      setTotalDuration(newVal);
+      return newVal;
+    });
     setRunning(true);
+  };
+
+  // Public setter that also updates totalDuration
+  const setSecondsLeft = (s: number) => {
+    setSecondsLeftRaw(s);
+    setTotalDuration(s);
   };
 
   return (
@@ -75,11 +88,13 @@ export const TimerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       value={{
         mode,
         secondsLeft,
+        totalDuration,
         running,
         setRunning,
         setMode: (m) => {
           setMode(m);
-          setSecondsLeft(DEFAULT_DURATIONS[m]);
+          setSecondsLeftRaw(DEFAULT_DURATIONS[m]);
+          setTotalDuration(DEFAULT_DURATIONS[m]);
           setRunning(false);
         },
         reset,

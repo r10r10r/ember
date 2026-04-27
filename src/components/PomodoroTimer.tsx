@@ -48,6 +48,7 @@ export function PomodoroTimer() {
   const {
     mode,
     secondsLeft,
+    totalDuration,
     running,
     setRunning,
     setMode,
@@ -108,8 +109,7 @@ export function PomodoroTimer() {
   const remove = (id: string) => setObjectives((o) => o.filter((x) => x.id !== id));
   const clearDone = () => setObjectives((o) => o.filter((x) => !x.done));
 
-  const total = mode === "focus" ? 25 * 60 : mode === "short" ? 5 * 60 : 15 * 60;
-  const progress = ((total - secondsLeft) / total) * 100;
+  const progress = totalDuration > 0 ? ((totalDuration - secondsLeft) / totalDuration) * 100 : 0;
   const accent = mode === "focus" ? "var(--focus)" : "var(--break)";
 
   const doneCount = objectives.filter((o) => o.done).length;

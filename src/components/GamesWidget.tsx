@@ -3,14 +3,6 @@ import { Gamepad2, Info, AlertTriangle, Play, PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useTimer } from "./TimerContext";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/card"; // Actually I'll use a custom overlay for the "popup" to be more stylish
 
 const GAMES = [
   {
