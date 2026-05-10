@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Flame, LayoutDashboard, BarChart4, Calendar as CalendarIcon, Gamepad2, Lock } from "lucide-react";
+import { Flame, LayoutDashboard, BarChart4, Calendar as CalendarIcon, Gamepad2, Lock, GraduationCap } from "lucide-react";
 import { PomodoroTimer } from "@/components/PomodoroTimer";
 import { PdfViewer } from "@/components/PdfViewer";
 import { AiChat } from "@/components/AiChat";
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { StatisticsWidget } from "@/components/StatisticsWidget";
 import { StudyPlanWidget } from "@/components/StudyPlanWidget";
 import { GamesWidget } from "@/components/GamesWidget";
+import { TakiAcademyWidget } from "@/components/TakiAcademyWidget";
 import { ClockDate } from "@/components/ClockDate";
 import { HeaderNotifications } from "@/components/HeaderNotifications";
 import { TimerProvider, useTimer } from "@/components/TimerContext";
@@ -29,10 +30,10 @@ export const Route = createFileRoute("/")({
 });
 
 function MainLayout() {
-  const [activeTab, setActiveTab] = useState<'workspace' | 'stats' | 'plan' | 'games'>('workspace');
+  const [activeTab, setActiveTab] = useState<'workspace' | 'stats' | 'plan' | 'games' | 'taki'>('workspace');
   const { mode } = useTimer();
 
-  const handleTabChange = (tab: 'workspace' | 'stats' | 'plan' | 'games') => {
+  const handleTabChange = (tab: 'workspace' | 'stats' | 'plan' | 'games' | 'taki') => {
     if (tab === 'games' && mode === 'focus') {
       toast.error("Games are locked!", {
         description: "Finish your focus session first. Return to focusing!",
@@ -86,6 +87,14 @@ function MainLayout() {
               <Gamepad2 className="w-3.5 h-3.5" /> <span className="hidden md:inline">Games</span>
               {mode === 'focus' && <Lock className="w-3 h-3 text-muted-foreground/50 ml-0.5" />}
             </Button>
+            <Button 
+              variant={activeTab === 'taki' ? 'secondary' : 'ghost'} 
+              size="sm" 
+              onClick={() => handleTabChange('taki')} 
+              className="h-8 gap-2 rounded-full text-xs"
+            >
+              <GraduationCap className="w-3.5 h-3.5" /> <span className="hidden md:inline">TakiAcademy</span>
+            </Button>
           </nav>
         </div>
 
@@ -120,6 +129,7 @@ function MainLayout() {
         <StatisticsWidget visible={activeTab === 'stats'} />
         <StudyPlanWidget visible={activeTab === 'plan'} />
         <GamesWidget visible={activeTab === 'games'} />
+        <TakiAcademyWidget visible={activeTab === 'taki'} />
       </div>
     </div>
   );
