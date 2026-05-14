@@ -11,6 +11,7 @@ import { StudyPlanWidget } from "@/components/StudyPlanWidget";
 import { GamesWidget } from "@/components/GamesWidget";
 import { TakiAcademyWidget } from "@/components/TakiAcademyWidget";
 import { ClockDate } from "@/components/ClockDate";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { HeaderNotifications } from "@/components/HeaderNotifications";
 import { TimerProvider, useTimer } from "@/components/TimerContext";
 import { toast } from "sonner";
@@ -99,6 +100,8 @@ function MainLayout() {
         </div>
 
         <div className="flex items-center gap-3">
+          <ThemeToggle />
+          <div className="w-px h-4 bg-border/60"></div>
           <div className="hidden lg:block">
             <ClockDate />
           </div>

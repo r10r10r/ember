@@ -105,15 +105,15 @@ export function StatisticsWidget({ visible }: { visible: boolean }) {
                 dataKey="date" 
                 axisLine={false} 
                 tickLine={false} 
-                tick={{ fontSize: 12, fill: "oklch(0.66 0.01 30)" }}
+                tick={{ fontSize: 12, fill: "var(--muted-foreground)" }}
               />
               <YAxis 
                 axisLine={false} 
                 tickLine={false} 
-                tick={{ fontSize: 10, fill: "oklch(0.66 0.01 30)" }}
+                tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
               />
               <Tooltip 
-                cursor={{ fill: 'oklch(1 0 0 / 5%)' }}
+                cursor={{ fill: 'var(--muted)' }}
                 content={({ active, payload }) => {
                   if (active && payload && payload.length) {
                     return (

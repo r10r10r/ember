@@ -681,7 +681,7 @@ export function AiChat() {
                     </div>
                   </div>
                 ) : m.role === "assistant" ? (
-                  <div className="prose prose-sm prose-invert max-w-none prose-p:my-1 prose-pre:my-2 prose-headings:my-2">
+                  <div className="prose prose-sm dark:prose-invert prose-p:my-1 prose-pre:my-2 prose-headings:my-2 max-w-none">
                     <ReactMarkdown
                       remarkPlugins={[[remarkMath, { singleDollarTextMath: true }], remarkGfm]}
                       rehypePlugins={[
